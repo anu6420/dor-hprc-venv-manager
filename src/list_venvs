@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+# Created 10-31-24 by Gabriel Floreslovo 
+# This script lists all of a user's virtual environments created by the create_venv script
+# this is achieved by parsing the 'metadata.json' file in the user's '$SCRATCH/virtual_envs/' directory
+
+import json
+import os
+import sys
+import getpass
+import datetime
+
+def main():
+	metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+
+	# Open and load the metadata file
+	try: # Try to open metadata file
+		with open(metadataPath, 'r') as file:
+			metadata = json.load(file)
+	except FileNotFoundError as e: # Handle different errors
+		print("Error: ", e)
+		print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+		sys.exit(1)
+	except json.JSONDecodeError as e:
+		print("Error: ", e)
+		print("The metadata file is corrupted or not in JSON format")
+		sys.exit(1)
+	except Exception as e:
+		print("An unexpected error occured: ",e)
+		sys.exit(1)
+	except: 
+		print("There was an error listing your environments")
+		
+	# Show the environments the user has in their directory
+	if len(metadata.get('environments',[])) == 0:
+		print("\nYou have no environments currently available through 'activate_venv'\n")
+
+	else:	
+		print("These are your virtual environments currently available through 'activate_venv':\n")
+		for env in metadata.get('environments',[]):
+			print("Name: " ,env.get('name', 'N/A'), " Description: ", env.get('description', 'N/A'), " Python Version: ", env.get('python_version', 'N/A'), " GCC version: ", env.get('GCCcore_version','N/A'))
+			
+		if len(metadata.get('environments',[])) == 0:
+			print("\nFor example, to activate 'my_venv' run this command: ")
+			print("$ activate_venv my_venv\n")
+		else:
+			firstEnv = metadata.get('environments')[0].get('name')
+			print(f"\nFor example, to activate '{firstEnv}' run this command: ")
+			print(f"$ source activate_venv {firstEnv}\n")
+	
+	# Log usage
+	# Format: day username action env_name
+	logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+
+	try:
+		logfile = open(logfilePath,'a')
+
+		username = getpass.getuser()
+		today = datetime.date.today()
+		logString = f"{today} {username} list_venv NA\n"
+		logfile.write(logString)
+	except FileNotFoundError as e:
+		print(f"Error: {e}")
+		print("The log file was not found where it was expected to be")
+		print("This action was not logged")
+		sys.exit(1)
+	except Exception as e:
+		print(f"Error: {e}")
+		print("This action was not logged")
+		sys.exit(1)
+if __name__ == "__main__":
+	main()

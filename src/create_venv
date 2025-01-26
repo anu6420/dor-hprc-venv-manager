@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import subprocess
+import argparse
+import re
+import getpass
+import datetime
+
+def create_virtualenv(venv_name, description):
+    # Check to make sure Python is loaded
+    eb_root_python = os.environ.get('EBROOTPYTHON')
+    if not eb_root_python:
+        print("Error: EBROOTPYTHON is not set. Please load a Python module with the 'ml' command.")
+        print("Use the 'ml spider' command to see all available versions and how to load a specific version:")
+        print("$ ml spider Python")
+        print("$ ml spider Python/3.x.x")
+        sys.exit(1)
+
+    # Extract Python and GCCcore versions from EBROOTPYTHON path
+    python_version_match = re.search(r"Python/(\d+\.\d+\.\d+)", eb_root_python)
+    gcccore_version_match = re.search(r"GCCcore-(\d+\.\d+\.\d+)", eb_root_python)
+
+    python_version = f"Python/{python_version_match.group(1)}" if python_version_match else "Python/unknown"
+    gcccore_version = f"GCCcore/{gcccore_version_match.group(1)}" if gcccore_version_match else "GCCcore/unknown"
+
+    # Validate the environment name
+    if not venv_name or not venv_name.isidentifier():
+        print("Error: Invalid virtual environment name. It must not contain spaces or special characters.")
+        sys.exit(1)
+
+    # Define paths
+    scratch = os.environ.get('SCRATCH')
+    venv_path = os.path.join(scratch, 'virtual_envs', venv_name)
+    metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
+    log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
+
+    # Create the virtual environment
+    print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
+    subprocess.run(["python3", "-m", "venv", "--system-site-packages", venv_path], check=True)
+
+    # Upgrade pip
+    activate_script = os.path.join(venv_path, 'bin', 'activate')
+    subprocess.run([f"source {activate_script} && pip install --upgrade pip"], shell=True)
+
+    # Log
+    # log_creation()
+
+    # Update the metadata file
+    update_metadata(metadata_file, venv_name, python_version, gcccore_version, description)
+	
+	# Activate the environment in the shell
+    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+
+    try:
+        logfile = open(logfilePath,'a')
+
+        username = getpass.getuser()
+        today = datetime.date.today()
+        logString = f"{today} {username} create_venv {venv_name}\n"
+        logfile.write(logString)
+    except Exception as e:
+        print(f"Error: {e}")
+        print("This action was not logged")
+        sys.exit(1)
+
+    print(f"Virtual environment '{venv_name}' created successfully.")
+    print(f"To activate, use: source activate_venv {venv_name}")
+    print("To see a list of all of your environments and info about them, use: list_venvs")
+
+# def log_creation():
+#     continue
+
+def update_metadata(metadata_file, venv_name, python_version, gcccore_version, description):
+    """Updates the metadata JSON file with the environment name, Python and GCCcore versions, and description."""
+    # Load or initialize metadata
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+    else:
+        metadata = {"environments": []}
+
+    # Add the new environment entry
+    metadata["environments"].append({
+        "name": venv_name,
+        "python_version": python_version,
+        "GCCcore_version": gcccore_version,
+        "description": description
+    })
+
+    # Write updated metadata back to the file
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f, indent=4)
+
+def main():
+    print("Parsing arguments...")  # Debugging statement
+    parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
+    parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
+    parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
+    args = parser.parse_args()
+
+    print("Arguments parsed successfully.")  # Debugging statement
+    create_virtualenv(args.venv_name, args.description)
+
+if __name__ == "__main__":
+    main()

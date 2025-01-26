@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+# Created 11-15-24 by Gabriel Floreslovo
+# This script deeletes a python virtual environment from a user's list of 
+# environments made by the HPRC create_venv tool
+
+import subprocess
+import argparse
+import sys
+import json
+import os
+import getpass
+import datetime
+
+def delete_environment(envToRemove):
+    filepath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+    try: # Try to open metadata file
+        with open(filepath, 'r') as file:
+            metadata = json.load(file)
+    except FileNotFoundError as e:
+        print("Error: ", e)
+        print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print("Error: ", e)
+        print("The metadata file is corrupted or not in JSON format")
+        sys.exit(1)
+    except Exception as e:
+        print("An unexpected error occured: ",e)
+        sys.exit(1)
+
+    envs = metadata['environments'] 
+    if any(env['name'] == envToRemove for env in envs):
+        # Remove env's metadata and update metadata.json
+        for ind, env in enumerate(envs):
+            if env['name'] == envToRemove:
+                envRemoved = envs.pop(ind)
+                break
+        print(f"Removing {envRemoved}'s files...")
+        try:
+            with open(filepath, 'w') as file:
+                json.dump(metadata, file)
+        except Exception as e:
+            print("An unexpected error occured: ",e)
+            sys.exit(1)
+
+        # Remove env's actual files
+        envDirPath = os.path.expandvars("$SCRATCH/virtual_envs")
+        envPath = os.path.join(envDirPath, envToRemove)
+        echoProc = subprocess.Popen(["echo", "y"], stdout=subprocess.PIPE)
+        rmProc = subprocess.Popen(["rm", "-r", f"{envPath}"], stdin=echoProc.stdout, stdout=subprocess.PIPE)
+        echoProc.stdout.close()
+        output, err = rmProc.communicate()
+        if err:
+            print(f"There was an error when removing {envToRemove}: {err}")
+        output = output.decode("utf-8")
+        print(output)
+        print(f"Successfully removed {envRemoved}")
+    else:
+        print(f"{envToRemove} does not exist in your current environment list.")
+
+    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+
+    try:
+        logfile = open(logfilePath,'a')
+
+        username = getpass.getuser()
+        today = datetime.date.today()
+        logString = f"{today} {username} delete_venv {envToRemove}\n"
+        logfile.write(logString)
+    except Exception as e:
+        print(f"Error: {e}")
+        print("This action was not logged")
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog='delete_venv',
+        description='Tool used to delete virtual environments created by the HPRC siute of virtual environment management tools'
+    )
+    parser.add_argument('env_name', help='The name of the environment you wish to delete')
+    args = parser.parse_args()
+
+    delete_environment(args.env_name)
+
+if __name__ == "__main__":
+    main()

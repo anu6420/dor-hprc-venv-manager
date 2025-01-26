@@ -1,0 +1,16 @@
+TODO: add logging
+
+
+Thoughts:
+
+make sure we're handling missing keys in the metadata file
+
+need to check for user trying to create environment with the same name. 
+
+add loading bar for cli users
+
+user disconnnects from cluster during creation, deletes env themselves
+
+would $SCRATCH/virtual_envs maybe not exist?
+
+possible permissions issues when creating/deleting environments
