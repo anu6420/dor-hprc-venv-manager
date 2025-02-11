@@ -1,5 +1,6 @@
-TODO: add logging
-
+TODO: 
+add logging - done
+make create_venv have an install jupyter option
 
 Thoughts:
 

@@ -9,7 +9,7 @@ import re
 import getpass
 import datetime
 
-def create_virtualenv(venv_name, description):
+def create_virtualenv(venv_name, description, jupyter):
     # Check to make sure Python is loaded
     eb_root_python = os.environ.get('EBROOTPYTHON')
     if not eb_root_python:
@@ -41,17 +41,21 @@ def create_virtualenv(venv_name, description):
     print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
     subprocess.run(["python3", "-m", "venv", "--system-site-packages", venv_path], check=True)
 
-    # Upgrade pip
-    activate_script = os.path.join(venv_path, 'bin', 'activate')
-    subprocess.run([f"source {activate_script} && pip install --upgrade pip"], shell=True)
+    # Upgrade pip and install jupyter if needed
+    if jupyter:
+        activate_script = os.path.join(venv_path, 'bin', 'activate')
+        subprocess.run([f"source {activate_script} && pip install --upgrade pip && echo y | pip install jupyter"], shell=True)
+    else:
+        activate_script = os.path.join(venv_path, 'bin', 'activate')
+        subprocess.run([f"source {activate_script} && pip install --upgrade pip"], shell=True)
 
     # Log
     # log_creation()
 
     # Update the metadata file
     update_metadata(metadata_file, venv_name, python_version, gcccore_version, description)
-	
-	# Activate the environment in the shell
+    
+    # Activate the environment in the shell
     logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
 
     try:
@@ -99,10 +103,11 @@ def main():
     parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
     parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
+    parser.add_argument("--jupyter", action="store_true", help="Install jupyter package. For environments that are made specifically to be used with Jupyter Notebooks")
     args = parser.parse_args()
 
     print("Arguments parsed successfully.")  # Debugging statement
-    create_virtualenv(args.venv_name, args.description)
+    create_virtualenv(args.venv_name, args.description, args.jupyter)
 
 if __name__ == "__main__":
     main()
