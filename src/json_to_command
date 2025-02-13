@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+# Created 10-31-24 by Gabriel Floreslovo
+# This script activates a Python virtual environment stored in a user's $SCRATCH/virtual_envs folder
+# these venvs are made by 'create_venv'
+
+import os 
+import sys
+import json
+import argparse
+
+def metadata_parse(filepath):
+    try: # Try to open metadata file
+        with open(filepath, 'r') as file:
+            metadata = json.load(file)
+    except FileNotFoundError as e:
+        print("Error: ", e)
+        print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print("Error: ", e)
+        print("The metadata file is corrupted or not in JSON format")
+        sys.exit(1)
+    except Exception as e:
+        print("An unexpected error occured: ",e)
+        sys.exit(1)
+
+    return metadata
+
+# Print the necessary commands based on the metadata and the desired environment
+def print_commands(metadata, environment):
+    # Print info message and exit if user has no environments
+    if len(metadata.get('environments',[])) == 0:
+        print("You have not created an environment with the 'create_venv' command")
+        print("You must do so before being able to use 'activate_venv'")
+        sys.exit(1)
+    else:
+        pythonV = ""
+        gccV = ""
+        # Iterate over environments to find and print commands for the specified one
+        for env in metadata.get('environments'):
+            if env.get('name', 'N/A') == environment:
+                pythonV = env.get('python_version','N/A')
+                gccV = env.get('GCCcore_version','N/A')
+                print(f"ml {gccV} {pythonV}")
+
+                scratch = os.environ.get('SCRATCH')
+                environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
+                print(f"source {environmentActivatePath}")
+
+                return 
+
+        print(f"The environment '{environment}' does not exist")
+        sys.exit(1)
+
+def main():
+
+    metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+
+    # Define and parse script's arguments
+    parser = argparse.ArgumentParser(
+           prog='activate_venv',
+           description='Activates one of your virtual environments created by create_venv'
+           )
+           
+    parser.add_argument('env_name', help='The name of the virtual environment you want to activate')
+    args = parser.parse_args()
+
+    # Parse metadata.json and return Python dict
+    metadata = metadata_parse(metadataPath)
+
+    # Print commands necessary for wrapper script to run
+    print_commands(metadata, args.env_name)
+
+if __name__ == "__main__":
+    main()
+
