@@ -9,7 +9,7 @@ import re
 import getpass
 import datetime
 
-def create_virtualenv(venv_name, description, jupyter):
+def create_virtualenv(venv_name, description):
     # Check to make sure Python is loaded
     eb_root_python = os.environ.get('EBROOTPYTHON')
     if not eb_root_python:
@@ -42,12 +42,8 @@ def create_virtualenv(venv_name, description, jupyter):
     subprocess.run(["python3", "-m", "venv", "--system-site-packages", venv_path], check=True)
 
     # Upgrade pip and install jupyter if needed
-    if jupyter:
-        activate_script = os.path.join(venv_path, 'bin', 'activate')
-        subprocess.run([f"source {activate_script} && pip install --upgrade pip && echo y | pip install jupyter"], shell=True)
-    else:
-        activate_script = os.path.join(venv_path, 'bin', 'activate')
-        subprocess.run([f"source {activate_script} && pip install --upgrade pip"], shell=True)
+    activate_script = os.path.join(venv_path, 'bin', 'activate')
+    subprocess.run([f"source {activate_script} && pip install --upgrade pip"], shell=True)
 
     # Log
     # log_creation()
@@ -73,6 +69,8 @@ def create_virtualenv(venv_name, description, jupyter):
     print(f"Virtual environment '{venv_name}' created successfully.")
     print(f"To activate, use: source activate_venv {venv_name}")
     print("To see a list of all of your environments and info about them, use: list_venvs")
+    print("\n")
+    print("Finally, if you want to use this environment for Jupyter, run \n$ pip install jupyter\nafter activating\n")
 
 # def log_creation():
 #     continue
@@ -102,12 +100,11 @@ def main():
     print("Parsing arguments...")  # Debugging statement
     parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
-    parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
-    parser.add_argument("--jupyter", action="store_true", help="Install jupyter package. For environments that are made specifically to be used with Jupyter Notebooks")
+    parser.add_argument("-d", "--description", help="Optional description of the environment", default="") 
     args = parser.parse_args()
 
     print("Arguments parsed successfully.")  # Debugging statement
-    create_virtualenv(args.venv_name, args.description, args.jupyter)
+    create_virtualenv(args.venv_name, args.description)
 
 if __name__ == "__main__":
     main()
