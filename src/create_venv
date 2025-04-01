@@ -9,22 +9,47 @@ import re
 import getpass
 import datetime
 
-def create_virtualenv(venv_name, description):
-    # Check to make sure Python is loaded
-    eb_root_python = os.environ.get('EBROOTPYTHON')
-    if not eb_root_python:
-        print("Error: EBROOTPYTHON is not set. Please load a Python module with the 'ml' command.")
-        print("Use the 'ml spider' command to see all available versions and how to load a specific version:")
-        print("$ ml spider Python")
-        print("$ ml spider Python/3.x.x")
-        sys.exit(1)
+def get_py_versions():
+    captureCommand = "/sw/local/bin/toolchains | grep Python > captured-output.txt"
+    removeCommand = "rm captured-output.txt"
+    subprocess.run(captureCommand, shell=True)
+    versions = {}
+    with open("captured-output.txt", "r") as file:
+        next(file)
+        # Grabbing the Python version and mapping it to corresponding GCC version
+        for line in file:
+            words = line.split()
+            if words[6] in versions:
+                continue
+            else:
+                versions[words[6]] = words[2]
+    subprocess.run(removeCommand, shell=True)
+    return versions
 
-    # Extract Python and GCCcore versions from EBROOTPYTHON path
-    python_version_match = re.search(r"Python/(\d+\.\d+\.\d+)", eb_root_python)
-    gcccore_version_match = re.search(r"GCCcore-(\d+\.\d+\.\d+)", eb_root_python)
+def create_virtualenv(venv_name, description, user_python_version, toolchain):
+    # If toolchain/Python version not provided, check ebroot as normal
+    if(user_python_version == -1 && toolchain == ""):
+        # Check to make sure Python is loaded
+        eb_root_python = os.environ.get('EBROOTPYTHON')
+        if not eb_root_python:
+            print("Error: EBROOTPYTHON is not set. Please load a Python module with the 'ml' command.")
+            print("Use the 'ml spider' command to see all available versions and how to load a specific version:")
+            print("$ ml spider Python")
+            print("$ ml spider Python/3.x.x")
+            sys.exit(1)
 
-    python_version = f"Python/{python_version_match.group(1)}" if python_version_match else "Python/unknown"
-    gcccore_version = f"GCCcore/{gcccore_version_match.group(1)}" if gcccore_version_match else "GCCcore/unknown"
+        # Extract Python and GCCcore versions from EBROOTPYTHON path
+        python_version_match = re.search(r"Python/(\d+\.\d+\.\d+)", eb_root_python)
+        gcccore_version_match = re.search(r"GCCcore-(\d+\.\d+\.\d+)", eb_root_python)
+
+        python_version = f"Python/{python_version_match.group(1)}" if python_version_match else "Python/unknown"
+        gcccore_version = f"GCCcore/{gcccore_version_match.group(1)}" if gcccore_version_match else "GCCcore/unknown"
+    
+    # Otherwise, use the provided python version
+    elif(user_python_version != -1):
+        versions = get_py_versions()
+        python_version = f"Python/{user_python_version}"
+        gcccore_version = versions[python_version]
 
     # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
@@ -37,9 +62,10 @@ def create_virtualenv(venv_name, description):
     metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
     log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
 
-    # Create the virtual environment
+    # Create the virtual environment; there are differences in creation based on options used
     print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
-    subprocess.run(["python3", "-m", "venv", "--system-site-packages", venv_path], check=True)
+    creation_command = f"source /etc/profile && module load {gccversion} {pyVersion} && python3 -m venv --system-site-packages {venv_path}"
+    subprocess.run(creation_command, shell=True)
 
     # Upgrade pip and install jupyter if needed
     activate_script = os.path.join(venv_path, 'bin', 'activate')
@@ -101,10 +127,13 @@ def main():
     parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
     parser.add_argument("-d", "--description", help="Optional description of the environment", default="") 
+    # Make toolchains and python version mutually exclusive
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-t", "--toolchain", help="List of modules that should be loaded during creation and before activating the venv", default="")
+    group.add_argument("-p", "--python", help="Specify the Python version that this venv should be created for", default=-1)
     args = parser.parse_args()
 
-    print("Arguments parsed successfully.")  # Debugging statement
-    create_virtualenv(args.venv_name, args.description)
+    create_virtualenv(args.venv_name, args.description, args.toolchain, args.python)
 
 if __name__ == "__main__":
     main()
