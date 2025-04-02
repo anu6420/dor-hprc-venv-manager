@@ -50,6 +50,11 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
         versions = get_py_versions()
         python_version = f"Python/{user_python_version}"
         gcccore_version = versions[python_version]
+    
+    # Toolchains does not require a python version, but we still set the variable
+    else:
+        python_version = "N/A"
+        gcccore_version = "N/A"
 
     # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
