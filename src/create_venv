@@ -110,10 +110,11 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
         print("This action was not logged")
         sys.exit(1)
 
+    print("\n")
     print(f"Virtual environment '{venv_name}' created successfully.")
     print(f"To activate, use: source activate_venv {venv_name}")
     print("To see a list of all of your environments and info about them, use: list_venvs")
-    print("\n")
+    print("")
     print("Finally, if you want to use this environment for Jupyter, run \n$ pip install jupyter\nafter activating\n")
 
 # def log_creation():
