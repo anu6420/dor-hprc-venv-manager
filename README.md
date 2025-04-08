@@ -1,9 +1,9 @@
 # dor-hprc-venv-manager
-Python virtual environment (venv) management tool suite
+ModuLair - a Python virtual environment (venv) management tool suite
 
 # Installation
-Clone this repository into a root directory of choice. The scripts will be installed in a "bin" subfolder of this directory.
-Then, run the *setup.sh* script in the root directory to run the installation the scripts.
+Clone this repository into a directory of your choice. Once cloned, enter the repo directory and run the *setup.sh* script. The ModuLair scripts will be installed in a bin sub-directory.
+We suggest adding this bin directory to the PATH environment variable for more convenient use.
 ```bash
 $ cd /sw/local
 $ git clone git@github.com:tamu-edu/dor-hprc-venv-manager.git
