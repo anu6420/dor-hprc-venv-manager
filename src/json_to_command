@@ -39,16 +39,24 @@ def print_commands(metadata, environment):
         gccV = ""
         # Iterate over environments to find and print commands for the specified one
         for env in metadata.get('environments'):
-            if env.get('name', 'N/A') == environment:
-                pythonV = env.get('python_version','N/A')
-                gccV = env.get('GCCcore_version','N/A')
-                print(f"ml {gccV} {pythonV}")
-
-                scratch = os.environ.get('SCRATCH')
-                environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
-                print(f"source {environmentActivatePath}")
-
-                return 
+            if env.get('name', 'not_there') == environment:
+                # If python version is specified, continue as normal
+                pythonV = env.get('python_version','not_there')
+                if (pythonV != "N/A"):
+                    gccV = env.get('GCCcore_version','not_there')
+                    print(f"ml {gccV} {pythonV}")
+                    scratch = os.environ.get('SCRATCH')
+                    environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
+                    print(f"source {environmentActivatePath}")
+                    return
+                # If not, then use the toolchain (it will be specified)
+                else:
+                    toolchain = env.get('toolchain', 'not_there')
+                    print(f"ml {toolchain}")
+                    scratch = os.environ.get('SCRATCH')
+                    environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
+                    print(f"source {environmentActivatePath}")
+                    return
 
         print(f"The environment '{environment}' does not exist")
         sys.exit(1)

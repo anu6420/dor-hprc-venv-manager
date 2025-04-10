@@ -30,27 +30,54 @@ def main():
 		sys.exit(1)
 	except: 
 		print("There was an error listing your environments")
-		
+
 	# Show the environments the user has in their directory
 	if len(metadata.get('environments',[])) == 0:
 		print("\nYou have no environments currently available through 'activate_venv'\n")
 
-	else:	
+	else:
+		envs = metadata.get('environments', [])
+
 		print("These are your virtual environments currently available through 'activate_venv':\n")
-		for env in metadata.get('environments',[]):
-			print("Name: " ,env.get('name', 'N/A'), " Description: ", env.get('description', 'N/A'), " Python Version: ", env.get('python_version', 'N/A'), " GCC version: ", env.get('GCCcore_version','N/A'))
-			
-		if len(metadata.get('environments',[])) == 0:
-			print("\nFor example, to activate 'my_venv' run this command: ")
-			print("$ activate_venv my_venv\n")
+
+		# Define headers and column widths
+		headers = ["Name", "Description", "Python Version", "GCC Version", "Toolchain"]
+		col_widths = [20, 25, 18, 15, 30]
+
+		# Print the header row
+		header_row = ""
+		for i, header in enumerate(headers):
+			header_row += f"{header:<{col_widths[i]}}"
+		print(header_row)
+		print("-" * sum(col_widths))
+
+		# Print each environment row
+		for env in envs:
+			row = [
+					env.get('name', 'N/A'),
+					env.get('description', 'N/A'),
+					env.get('python_version', 'N/A'),
+					env.get('GCCcore_version', 'N/A'),
+					env.get('toolchain', 'N/A')
+					]
+			formatted_row = ""
+			for i, val in enumerate(row):
+				formatted_row += f"{val:<{col_widths[i]}}"
+			print(formatted_row)
+
+		# Example activation command
+		if envs:
+			firstEnv = envs[0].get('name')
+			print(f"\nFor example, to activate '{firstEnv}' run this command: ")
+			print(f"$ source activate_venv {firstEnv}\n")
 		else:
 			firstEnv = metadata.get('environments')[0].get('name')
 			print(f"\nFor example, to activate '{firstEnv}' run this command: ")
 			print(f"$ source activate_venv {firstEnv}\n")
-	
+
 	# Log usage
 	# Format: day username action env_name
-	logfilePath = os.path.join('<LOGDIR>/venv.log')
+        logfilePath = os.path.join('<LOGDIR>/venv.log')	
 
 	try:
 		logfile = open(logfilePath,'a')
