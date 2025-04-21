@@ -11,89 +11,89 @@ import getpass
 import datetime
 
 def main():
-	metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+        metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
 
-	# Open and load the metadata file
-	try: # Try to open metadata file
-		with open(metadataPath, 'r') as file:
-			metadata = json.load(file)
-	except FileNotFoundError as e: # Handle different errors
-		print("Error: ", e)
-		print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
-		sys.exit(1)
-	except json.JSONDecodeError as e:
-		print("Error: ", e)
-		print("The metadata file is corrupted or not in JSON format")
-		sys.exit(1)
-	except Exception as e:
-		print("An unexpected error occured: ",e)
-		sys.exit(1)
-	except: 
-		print("There was an error listing your environments")
+        # Open and load the metadata file
+        try: # Try to open metadata file
+                with open(metadataPath, 'r') as file:
+                        metadata = json.load(file)
+        except FileNotFoundError as e: # Handle different errors
+                print("Error: ", e)
+                print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+                print("Error: ", e)
+                print("The metadata file is corrupted or not in JSON format")
+                sys.exit(1)
+        except Exception as e:
+                print("An unexpected error occured: ",e)
+                sys.exit(1)
+        except: 
+                print("There was an error listing your environments")
 
-	# Show the environments the user has in their directory
-	if len(metadata.get('environments',[])) == 0:
-		print("\nYou have no environments currently available through 'activate_venv'\n")
+        # Show the environments the user has in their directory
+        if len(metadata.get('environments',[])) == 0:
+                print("\nYou have no environments currently available through 'activate_venv'\n")
 
-	else:
-		envs = metadata.get('environments', [])
+        else:
+                envs = metadata.get('environments', [])
 
-		print("These are your virtual environments currently available through 'activate_venv':\n")
+                print("These are your virtual environments currently available through 'activate_venv':\n")
 
-		# Define headers and column widths
-		headers = ["Name", "Description", "Python Version", "GCC Version", "Toolchain"]
-		col_widths = [20, 25, 18, 15, 30]
+                # Define headers and column widths
+                headers = ["Name", "Description", "Python Version", "GCC Version", "Toolchain"]
+                col_widths = [20, 25, 18, 15, 30]
 
-		# Print the header row
-		header_row = ""
-		for i, header in enumerate(headers):
-			header_row += f"{header:<{col_widths[i]}}"
-		print(header_row)
-		print("-" * sum(col_widths))
+                # Print the header row
+                header_row = ""
+                for i, header in enumerate(headers):
+                        header_row += f"{header:<{col_widths[i]}}"
+                print(header_row)
+                print("-" * sum(col_widths))
 
-		# Print each environment row
-		for env in envs:
-			row = [
-					env.get('name', 'N/A'),
-					env.get('description', 'N/A'),
-					env.get('python_version', 'N/A'),
-					env.get('GCCcore_version', 'N/A'),
-					env.get('toolchain', 'N/A')
-					]
-			formatted_row = ""
-			for i, val in enumerate(row):
-				formatted_row += f"{val:<{col_widths[i]}}"
-			print(formatted_row)
+                # Print each environment row
+                for env in envs:
+                        row = [
+                                        env.get('name', 'N/A'),
+                                        env.get('description', 'N/A'),
+                                        env.get('python_version', 'N/A'),
+                                        env.get('GCCcore_version', 'N/A'),
+                                        env.get('toolchain', 'N/A')
+                                        ]
+                        formatted_row = ""
+                        for i, val in enumerate(row):
+                                formatted_row += f"{val:<{col_widths[i]}}"
+                        print(formatted_row)
 
-		# Example activation command
-		if envs:
-			firstEnv = envs[0].get('name')
-			print(f"\nFor example, to activate '{firstEnv}' run this command: ")
-			print(f"$ source activate_venv {firstEnv}\n")
-		else:
-			firstEnv = metadata.get('environments')[0].get('name')
-			print(f"\nFor example, to activate '{firstEnv}' run this command: ")
-			print(f"$ source activate_venv {firstEnv}\n")
+                # Example activation command
+                if envs:
+                        firstEnv = envs[0].get('name')
+                        print(f"\nFor example, to activate '{firstEnv}' run this command: ")
+                        print(f"$ source activate_venv {firstEnv}\n")
+                else:
+                        firstEnv = metadata.get('environments')[0].get('name')
+                        print(f"\nFor example, to activate '{firstEnv}' run this command: ")
+                        print(f"$ source activate_venv {firstEnv}\n")
 
-	# Log usage
-	# Format: day username action env_name
-	logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+        # Log usage
+        # Format: day username action env_name
+        logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
 
-	try:
-		logfile = open(logfilePath,'a')
+        try:
+                logfile = open(logfilePath,'a')
 
-		username = getpass.getuser()
-		today = datetime.date.today()
-		logString = f"{today} {username} list_venv NA\n"
-		logfile.write(logString)
-	except FileNotFoundError as e:
-		print(f"Error: {e}")
-		print("The log file was not found where it was expected to be")
-		print("This action was not logged")
-		sys.exit(1)
-	except Exception as e:
-		print(f"Error: {e}")
-		print("This action was not logged")
-		sys.exit(1)
+                username = getpass.getuser()
+                today = datetime.date.today()
+                logString = f"{today} {username} list_venv NA\n"
+                logfile.write(logString)
+        except FileNotFoundError as e:
+                print(f"Error: {e}")
+                print("The log file was not found where it was expected to be")
+                print("This action was not logged")
+                sys.exit(1)
+        except Exception as e:
+                print(f"Error: {e}")
+                print("This action was not logged")
+                sys.exit(1)
 if __name__ == "__main__":
-	main()
+        main()
