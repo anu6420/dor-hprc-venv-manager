@@ -13,18 +13,20 @@ def get_py_versions():
     captureCommand = "/sw/local/bin/toolchains | grep Python > captured-output.txt"
     removeCommand = "rm captured-output.txt"
     subprocess.run(captureCommand, shell=True)
-    versions = {}
+    py_versions = {}
+    tc_versions = {}
     with open("captured-output.txt", "r") as file:
         next(file)
         # Grabbing the Python version and mapping it to corresponding GCC version
         for line in file:
             words = line.split()
-            if words[6] in versions:
+            tc_versions[words[0]]  = [words[2], words[6]] 
+            if words[6] in py_versions:
                 continue
             else:
-                versions[words[6]] = words[2]
+                py_versions[words[6]] = words[2]
     subprocess.run(removeCommand, shell=True)
-    return versions
+    return [py_versions, tc_versions]
 
 def create_virtualenv(venv_name, description, toolchain, user_python_version):
     # If toolchain/Python version not provided, check ebroot as normal
@@ -47,14 +49,17 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
     
     # Otherwise, use the provided python version
     elif(user_python_version != "-1"): 
-        versions = get_py_versions()
+        _versions = get_py_versions()
+        versions = _versions[0]
         python_version = f"Python/{user_python_version}"
         gcccore_version = versions[python_version]
     
     # Toolchains does not require a python version, but we still set the variable
     else:
-        python_version = "N/A"
-        gcccore_version = "N/A"
+        _tc = get_py_versions()
+        versions = _tc[1]
+        python_version = versions[toolchain][1]
+        gcccore_version = versions[toolchain][0]
 
     # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
