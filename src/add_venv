@@ -30,9 +30,16 @@ def get_py_versions():
 
 def add_virtualvenv(path_to_venv, desc, user_python_version):
     venv_name = os.path.basename(path_to_venv.rstrip('/'))
+    scratch = os.environ.get('SCRATCH')
+    centralized_path = os.path.join(scratch, 'virtual_envs', venv_name)
+
     print(f"Adding virtual environment '{venv_name}' to manager...")
-    move_command = f"mv {path_to_venv} $SCRATCH/virtual_envs"
+    move_command = f"mv {path_to_venv} {centralized_path}"
     subprocess.run(move_command, shell=True)
+
+    symlink_command = f"ln -s {centralized_path} {path_to_venv}"
+    subprocess.run(symlink_command, shell=True)
+
     _versions = get_py_versions()
     versions = _versions[0]
     python_version = f"Python/{user_python_version}"
@@ -40,7 +47,6 @@ def add_virtualvenv(path_to_venv, desc, user_python_version):
 
     scratch = os.environ.get('SCRATCH')
     metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
-    venv_name = os.path.basename(path_to_venv.rstrip('/'))
     update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain='', description=desc)
 
     print(f"{venv_name} added to the manager, run 'list_venvs' to see all environments in the manager")
