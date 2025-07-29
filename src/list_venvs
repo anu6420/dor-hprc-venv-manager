@@ -9,8 +9,68 @@ import os
 import sys
 import getpass
 import datetime
+import subprocess
+def get_groups():
+    scratch_path = os.environ.get('SCRATCH')
+    user = os.path.basename(scratch_path.rstrip('/'))
+
+    groups_command = f"groups {user} > groups.txt"
+    remove_command = f"rm groups.txt"
+    subprocess.run(groups_command, shell=True)
+
+    with open("groups.txt", 'r') as file:
+        for line in file:
+            parts = line.strip().split(':')
+            if len(parts) == 2:
+                uname = parts[0].strip()
+                group_list = parts[1].strip().split()
+
+                
+    subprocess.run(remove_command, shell=True)
+    return group_list
+def get_json(group_name):
+    json_path = os.path.join("/", "scratch", "group", group_name, "virtual_envs", "metadata.json")
+    try:
+        with open(json_path, 'r') as file:
+            data = json.load(file)
+        return data
+    except:
+        return {}
+def print_json(metadata, group_name="your $SCRATCH"):
+    if len(metadata.get('environments',[])) == 0:
+        print(f"\nYou have no environments in {group_name} currently available through 'activate_venv'\n")
+    else:
+        envs = metadata.get('environments', [])
+        print(f"These are your virtual environments in {group_name} currently available through 'activate_venv':\n")
+        # Define headers and column widths
+        headers = ["Name", "Description", "Python Version", "GCC Version", "Toolchain", "Group", "Owner"]
+        col_widths = [20, 25, 18, 15, 30, 20, 20]
+        # Print the header row
+        header_row = ""
+        for i, header in enumerate(headers):
+            header_row += f"{header:<{col_widths[i]}}"
+        print(header_row)
+        print("-" * sum(col_widths))
+        # Print each environment row
+        for env in envs:
+            row = [
+                env.get('name', 'N/A'),
+                env.get('description', 'N/A'),
+                env.get('python_version', 'N/A'),
+                env.get('GCCcore_version', 'N/A'),
+                env.get('toolchain', 'N/A'),
+                env.get('group', 'N/A'),
+                env.get('owner', 'N/A')
+            ]
+            formatted_row = ""
+            for i, val in enumerate(row):
+                formatted_row += f"{val:<{col_widths[i]}}"
+            print(formatted_row)
 
 def main():
+        groups = get_groups()
+        for g in groups:
+                print_json(get_json(g), g)
         metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
 
         # Open and load the metadata file
@@ -32,49 +92,9 @@ def main():
                 print("There was an error listing your environments")
 
         # Show the environments the user has in their directory
-        if len(metadata.get('environments',[])) == 0:
-                print("\nYou have no environments currently available through 'activate_venv'\n")
-
-        else:
-                envs = metadata.get('environments', [])
-
-                print("These are your virtual environments currently available through 'activate_venv':\n")
-
-                # Define headers and column widths
-                headers = ["Name", "Description", "Python Version", "GCC Version", "Toolchain"]
-                col_widths = [20, 25, 18, 15, 30]
-
-                # Print the header row
-                header_row = ""
-                for i, header in enumerate(headers):
-                        header_row += f"{header:<{col_widths[i]}}"
-                print(header_row)
-                print("-" * sum(col_widths))
-
-                # Print each environment row
-                for env in envs:
-                        row = [
-                                        env.get('name', 'N/A'),
-                                        env.get('description', 'N/A'),
-                                        env.get('python_version', 'N/A'),
-                                        env.get('GCCcore_version', 'N/A'),
-                                        env.get('toolchain', 'N/A')
-                                        ]
-                        formatted_row = ""
-                        for i, val in enumerate(row):
-                                formatted_row += f"{val:<{col_widths[i]}}"
-                        print(formatted_row)
-
-                # Example activation command
-                if envs:
-                        firstEnv = envs[0].get('name')
-                        print(f"\nFor example, to activate '{firstEnv}' run this command: ")
-                        print(f"$ source activate_venv {firstEnv}\n")
-                else:
-                        firstEnv = metadata.get('environments')[0].get('name')
-                        print(f"\nFor example, to activate '{firstEnv}' run this command: ")
-                        print(f"$ source activate_venv {firstEnv}\n")
-
+        print_json(metadata)
+        print(f"\nFor example, to activate 'myvenv' run this command: ")
+        print(f"$ source activate_venv myvenv\n")
         # Log usage
         # Format: day username action env_name
         logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
