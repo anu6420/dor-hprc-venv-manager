@@ -28,7 +28,26 @@ def get_py_versions():
     subprocess.run(removeCommand, shell=True)
     return [py_versions, tc_versions]
 
-def create_virtualenv(venv_name, description, toolchain, user_python_version):
+def get_user():
+    scratch_path = os.environ.get('SCRATCH')
+    user = os.path.basename(scratch_path.rstrip('/'))
+    return user
+
+def check_group(group):
+    user = get_user()
+    check_command = f"groups {user} | grep {group} > check.txt"
+    removeCommand = "rm check.txt"
+
+    subprocess.run(check_command, shell=True)
+    with open("check.txt", "r") as file:
+        first_char = file.read(1)
+        if not first_char:
+            subprocess.run(removeCommand, shell=True)
+            return False
+    subprocess.run(removeCommand, shell=True)
+    return True
+
+def create_virtualenv(venv_name, description, group, toolchain, user_python_version):
     # If toolchain/Python version not provided, check ebroot as normal
     if(user_python_version == "-1" and toolchain == ""):
         # Check to make sure Python is loaded
@@ -66,11 +85,21 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
         print("Error: Invalid virtual environment name. It must not contain spaces or special characters.")
         sys.exit(1)
 
-    # Define paths
-    scratch = os.environ.get('SCRATCH')
-    venv_path = os.path.join(scratch, 'virtual_envs', venv_name)
-    metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
-    log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
+    # Define path
+    if group != "":
+        if check_group(group):
+            venv_path = os.path.join('/', 'scratch', 'group', group, 'virtual_envs', venv_name)
+            metadata_file = os.path.join('/', 'scratch', 'group', group, 'virtual_envs', 'metadata.json')
+            log_file = os.path.join('/', 'scratch', 'group', group,  'virtual_envs', 'creation.log')
+        else:
+            print(f"Error: User not in group '{group}'.")
+            sys.exit(1)
+
+    else:
+        scratch = os.environ.get('SCRATCH')
+        venv_path = os.path.join(scratch, 'virtual_envs', venv_name)
+        metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
+        log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
 
     # Create the virtual environment; there are differences in creation based on options used
     print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
@@ -98,7 +127,7 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
     # log_creation()
 
     # Update the metadata file
-    update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain, description)
+    update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description)
     
     # Activate the environment in the shell
     logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
@@ -125,7 +154,7 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
 # def log_creation():
 #     continue
 
-def update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain, description):
+def update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description):
     """Updates the metadata JSON file with the environment name, Python and GCCcore versions, and description."""
     # Load or initialize metadata
     if os.path.exists(metadata_file):
@@ -140,7 +169,9 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, t
         "python_version": python_version,
         "GCCcore_version": gcccore_version,
         "description": description,
-        "toolchain": toolchain
+        "toolchain": toolchain,
+        "group": group,
+        "owner": get_user()
     })
 
     # Write updated metadata back to the file
@@ -150,7 +181,8 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, t
 def main():
     parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
-    parser.add_argument("-d", "--description", help="Optional description of the environment", default="") 
+    parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
+    parser.add_argument("-g", "--group", help="Optional name of the group for shared environment", default="")
     # Make toolchains and python version mutually exclusive
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-t", "--toolchain", help="Space-separated list of modules input as a string that should be loaded during creation and before activating the venv", default="")
@@ -158,7 +190,7 @@ def main():
     args = parser.parse_args()
 
     print(args)
-    create_virtualenv(args.venv_name, args.description, args.toolchain, args.python)
+    create_virtualenv(args.venv_name, args.description, args.group, args.toolchain, args.python)
 
 if __name__ == "__main__":
     main()
