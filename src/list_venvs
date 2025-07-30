@@ -200,7 +200,7 @@ def print_venvs(arg_user, arg_group):
 
 def log_usage():
     """Log the list_venvs command usage."""
-    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-venv-manager/logs/venv.log')
     
     try:
         with open(logfilePath, 'a') as logfile:
