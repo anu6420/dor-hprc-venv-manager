@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# Created 10-31-24 by Gabriel Floreslovo 
+# Created 10-31-24 by Gabriel Floreslovo
+# Modified by Ananya Adiki and Surada Suwansathit
 # This script lists all of a user's virtual environments created by the create_venv script
 # this is achieved by parsing the 'metadata.json' file in the user's '$SCRATCH/virtual_envs/' directory
 
@@ -12,8 +13,7 @@ import datetime
 import subprocess
 import shutil
 import textwrap
-import shutil
-
+import argparse
 def get_terminal_width():
     """Get the current terminal width, with a fallback."""
     try:
@@ -113,7 +113,7 @@ def print_json(metadata, group_name="your $SCRATCH"):
         
         # Calculate responsive column widths
         available_width = terminal_width - 8
-        base_widths = [15, 25, 15, 12, 20, 15]  # name, desc, python, gcc, toolchain, owner
+        base_widths = [15, 25, 15, 15, 20, 15]  # name, desc, python, gcc, toolchain, owner
         total_base = sum(base_widths)
         
         if available_width > total_base:
@@ -171,54 +171,74 @@ def print_json(metadata, group_name="your $SCRATCH"):
                     line += f"{text:<{col_widths[col_num]}}"
                 print(line.rstrip())
 
-def main():
+def print_venvs(arg_user, arg_group):
+
+    metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+
+    # Open and load the metadata file
+    try: # Try to open metadata file
+        with open(metadataPath, 'r') as file:
+            metadata = json.load(file)
+    except FileNotFoundError as e: # Handle different errors
+        print("Error: ", e)
+        print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print("Error: ", e)
+        print("The metadata file is corrupted or not in JSON format")
+        sys.exit(1)
+    except Exception as e:
+        print("An unexpected error occured: ",e)
+        sys.exit(1)
+    except:
+        print("There was an error listing your environments")
+    
+    if not arg_user and arg_group == '-1': 
         groups = get_groups()
         for g in groups:
-                print_json(get_json(g), g)
+            print_json(get_json(g), g)
         metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
-
-        # Open and load the metadata file
-        try: # Try to open metadata file
-                with open(metadataPath, 'r') as file:
-                        metadata = json.load(file)
-        except FileNotFoundError as e: # Handle different errors
-                print("Error: ", e)
-                print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
-                sys.exit(1)
-        except json.JSONDecodeError as e:
-                print("Error: ", e)
-                print("The metadata file is corrupted or not in JSON format")
-                sys.exit(1)
-        except Exception as e:
-                print("An unexpected error occured: ",e)
-                sys.exit(1)
-        except: 
-                print("There was an error listing your environments")
 
         # Show the environments the user has in their directory
         print_json(metadata)
         print(f"\nFor example, to activate 'myvenv' run this command: ")
         print(f"$ source activate_venv myvenv\n")
-        # Log usage
-        # Format: day username action env_name
-        logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
 
-        try:
-                logfile = open(logfilePath,'a')
+    elif arg_user:
+        print(json.dumps(metadata, indent=4))
+    else:
+        print(json.dumps(get_json(arg_group), indent=4))
 
-                username = getpass.getuser()
-                today = datetime.date.today()
-                logString = f"{today} {username} list_venv NA\n"
-                logfile.write(logString)
-        except FileNotFoundError as e:
-                print(f"Error: {e}")
-                print("The log file was not found where it was expected to be")
-                print("This action was not logged")
-                sys.exit(1)
-        except Exception as e:
-                print(f"Error: {e}")
-                print("This action was not logged")
-                sys.exit(1)
+    # Log usage
+    # Format: day username action env_name
+    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+    
 
+    try:
+        logfile = open(logfilePath,'a')
+
+        username = getpass.getuser()
+        today = datetime.date.today()
+        logString = f"{today} {username} list_venv NA\n"
+        logfile.write(logString)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("The log file was not found where it was expected to be")
+        print("This action was not logged")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        print("This action was not logged")
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="List Python virtual environments managed by ModuLair.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-u", "--user", action= "store_true", help="Print private virtual environments in JSON format.")
+    group.add_argument("-g", "--group", help="Print shared virtual environments in JSON format.", default="-1")
+
+    args = parser.parse_args()
+    print_venvs(args.user, args.group)
 if __name__ == "__main__":
     main()
