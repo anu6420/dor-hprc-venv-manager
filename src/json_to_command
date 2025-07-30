@@ -2,84 +2,69 @@
 
 # Created 10-31-24 by Gabriel Floreslovo
 # This script activates a Python virtual environment stored in a user's $SCRATCH/virtual_envs folder
-# these venvs are made by 'create_venv'
+# or in shared group environments. These venvs are made by 'create_venv'
+# Updated to support shared group environments using centralized metadata utilities
 
 import os 
 import sys
-import json
 import argparse
 
-def metadata_parse(filepath):
-    try: # Try to open metadata file
-        with open(filepath, 'r') as file:
-            metadata = json.load(file)
-    except FileNotFoundError as e:
-        print("Error: ", e)
-        print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
+# Import the centralized metadata utilities
+from utils import find_environment_by_name, get_environment_path
+
+
+def print_activation_commands(environment_name):
+    
+    # Find the environment across all accessible sources
+    source_type, source_name, env_dict = find_environment_by_name(environment_name)
+    
+    if source_type is None:
+        print(f"The environment '{environment_name}' does not exist")
+        print("Use 'list_venvs' to see all available environments.")
         sys.exit(1)
-    except json.JSONDecodeError as e:
-        print("Error: ", e)
-        print("The metadata file is corrupted or not in JSON format")
-        sys.exit(1)
+    
+    # Get environment details
+    python_version = env_dict.get('python_version', 'N/A')
+    gcc_version = env_dict.get('GCCcore_version', 'N/A')
+    toolchain = env_dict.get('toolchain', 'N/A')
+    
+    # Get the activation script path
+    try:
+        env_path = get_environment_path(environment_name, source_type, source_name)
+        activation_script = os.path.join(env_path, "bin", "activate")
     except Exception as e:
-        print("An unexpected error occured: ",e)
+        print(f"Error determining environment path: {e}")
         sys.exit(1)
-
-    return metadata
-
-# Print the necessary commands based on the metadata and the desired environment
-def print_commands(metadata, environment):
-    # Print info message and exit if user has no environments
-    if len(metadata.get('environments',[])) == 0:
-        print("You have not created an environment with the 'create_venv' command")
-        print("You must do so before being able to use 'activate_venv'")
-        sys.exit(1)
+    
+    # Print the module load commands based on the environment configuration
+    if python_version != "N/A" and python_version != "":
+        # Environment was created with a specific Python version
+        print(f"ml {gcc_version} {python_version}")
+    elif toolchain != "N/A" and toolchain != "":
+        # Environment was created with a toolchain
+        print(f"ml {toolchain}")
     else:
-        pythonV = ""
-        gccV = ""
-        # Iterate over environments to find and print commands for the specified one
-        for env in metadata.get('environments'):
-            if env.get('name', 'not_there') == environment:
-                # If python version is specified, continue as normal
-                pythonV = env.get('python_version','not_there')
-                if (pythonV != "N/A"):
-                    gccV = env.get('GCCcore_version','not_there')
-                    print(f"ml {gccV} {pythonV}")
-                    scratch = os.environ.get('SCRATCH')
-                    environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
-                    print(f"source {environmentActivatePath}")
-                    return
-                # If not, then use the toolchain (it will be specified)
-                else:
-                    toolchain = env.get('toolchain', 'not_there')
-                    print(f"ml {toolchain}")
-                    scratch = os.environ.get('SCRATCH')
-                    environmentActivatePath = os.path.join(scratch,"virtual_envs",environment,"bin/activate")
-                    print(f"source {environmentActivatePath}")
-                    return
+        # Legacy environment or no modules specified
+        # Don't print any module load command - user should have modules already loaded
+        pass
+    
+    # Print the activation command
+    print(f"source {activation_script}")
 
-        print(f"The environment '{environment}' does not exist")
-        sys.exit(1)
 
 def main():
-
-    metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
-
     # Define and parse script's arguments
     parser = argparse.ArgumentParser(
-           prog='activate_venv',
-           description='Activates one of your virtual environments created by create_venv'
-           )
-           
+        prog='json_to_command',
+        description='Generates activation commands for virtual environments created by create_venv. Supports both personal and shared group environments.'
+    )
+    
     parser.add_argument('env_name', help='The name of the virtual environment you want to activate')
     args = parser.parse_args()
 
-    # Parse metadata.json and return Python dict
-    metadata = metadata_parse(metadataPath)
-
     # Print commands necessary for wrapper script to run
-    print_commands(metadata, args.env_name)
+    print_activation_commands(args.env_name)
+
 
 if __name__ == "__main__":
     main()
-
