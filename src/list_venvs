@@ -10,10 +10,14 @@ import os
 import sys
 import getpass
 import datetime
-import subprocess
 import shutil
 import textwrap
 import argparse
+
+# Import the centralized metadata utilities
+from utils import load_all_metadata, load_user_metadata, load_group_metadata
+
+
 def get_terminal_width():
     """Get the current terminal width, with a fallback."""
     try:
@@ -21,57 +25,22 @@ def get_terminal_width():
     except:
         return 80  # fallback width
 
-def get_groups():
-    scratch_path = os.environ.get('SCRATCH')
-    user = os.path.basename(scratch_path.rstrip('/'))
-
-    groups_command = f"groups {user} > groups.txt"
-    remove_command = f"rm groups.txt"
-    subprocess.run(groups_command, shell=True)
-
-    with open("groups.txt", 'r') as file:
-        for line in file:
-            parts = line.strip().split(':')
-            if len(parts) == 2:
-                uname = parts[0].strip()
-                group_list = parts[1].strip().split()
-
-                
-    subprocess.run(remove_command, shell=True)
-    return group_list
-
-def get_json(group_name):
-    json_path = os.path.join("/", "scratch", "group", group_name, "virtual_envs", "metadata.json")
-    try:
-        with open(json_path, 'r') as file:
-            data = json.load(file)
-        return data
-    except FileNotFoundError:
-        # Silently return empty dict - this is expected for groups without shared environments
-        return {}
-    except json.JSONDecodeError as e:
-        print(f"Error: {e}")
-        print(f"The metadata file for group '{group_name}' is corrupted or not in JSON format")
-        return {}
-    except PermissionError:
-        # Silently return empty dict - user may not have access to all group directories
-        return {}
-    except Exception as e:
-        print(f"An unexpected error occurred while reading metadata for group '{group_name}': {e}")
-        return {}
 
 def truncate_text(text, max_length):
     if len(text) <= max_length:
         return text
     return text[:max_length-3] + "..."
 
+
 def wrap_text(text, width):
     if len(text) <= width:
         return [text]
     return textwrap.wrap(text, width=width, break_long_words=True, break_on_hyphens=False)
 
-def print_json(metadata, group_name="your $SCRATCH"):
-    if len(metadata.get('environments',[])) == 0:
+
+def print_environments_table(metadata, group_name="your $SCRATCH"):
+    """Print environments in a formatted table or compact list."""
+    if len(metadata.get('environments', [])) == 0:
         print(f"\nYou have no environments in {group_name} currently available through 'activate_venv'\n")
         return
     
@@ -171,74 +140,95 @@ def print_json(metadata, group_name="your $SCRATCH"):
                     line += f"{text:<{col_widths[col_num]}}"
                 print(line.rstrip())
 
+
 def print_venvs(arg_user, arg_group):
-
-    metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
-
-    # Open and load the metadata file
-    try: # Try to open metadata file
-        with open(metadataPath, 'r') as file:
-            metadata = json.load(file)
-    except FileNotFoundError as e: # Handle different errors
-        print("Error: ", e)
-        print("There was no metadata file found; you likely have not yet used 'create_venv' to make a virtual environment.")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print("Error: ", e)
-        print("The metadata file is corrupted or not in JSON format")
-        sys.exit(1)
-    except Exception as e:
-        print("An unexpected error occured: ",e)
-        sys.exit(1)
-    except:
-        print("There was an error listing your environments")
+    """Main function to print virtual environments based on arguments."""
     
-    if not arg_user and arg_group == '-1': 
-        groups = get_groups()
-        for g in groups:
-            print_json(get_json(g), g)
-        metadataPath = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+    # Handle specific cases for JSON output
+    if arg_user:
+        # Print user environments in JSON format
+        try:
+            metadata = load_user_metadata()
+            print(json.dumps(metadata, indent=4))
+        except Exception as e:
+            print(f"Error loading user metadata: {e}")
+            sys.exit(1)
+        return
+    
+    if arg_group != '-1':
+        # Print specific group environments in JSON format
+        try:
+            metadata = load_group_metadata(arg_group)
+            print(json.dumps(metadata, indent=4))
+        except Exception as e:
+            print(f"Error loading group metadata for '{arg_group}': {e}")
+            sys.exit(1)
+        return
+    
+    # Default behavior: show all environments in formatted tables
+    try:
+        all_metadata = load_all_metadata()
+        
+        # Print group environments first
+        for group_name, group_metadata in all_metadata['groups'].items():
+            print_environments_table(group_metadata, f"group '{group_name}'")
+        
+        # Print user environments
+        print_environments_table(all_metadata['user'])
+        
+        # Show example activation command if any environments exist
+        user_envs = all_metadata['user'].get('environments', [])
+        group_envs = []
+        for group_metadata in all_metadata['groups'].values():
+            group_envs.extend(group_metadata.get('environments', []))
+        
+        if user_envs or group_envs:
+            example_env = None
+            if user_envs:
+                example_env = user_envs[0].get('name')
+            elif group_envs:
+                example_env = group_envs[0].get('name')
+            
+            if example_env:
+                print(f"\nFor example, to activate '{example_env}' run this command:")
+                print(f"$ source activate_venv {example_env}\n")
+    
+    except Exception as e:
+        print(f"Error loading environment metadata: {e}")
+        sys.exit(1)
 
-        # Show the environments the user has in their directory
-        print_json(metadata)
-        print(f"\nFor example, to activate 'myvenv' run this command: ")
-        print(f"$ source activate_venv myvenv\n")
 
-    elif arg_user:
-        print(json.dumps(metadata, indent=4))
-    else:
-        print(json.dumps(get_json(arg_group), indent=4))
-
-    # Log usage
-    # Format: day username action env_name
+def log_usage():
+    """Log the list_venvs command usage."""
     logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
     
-
     try:
-        logfile = open(logfilePath,'a')
-
-        username = getpass.getuser()
-        today = datetime.date.today()
-        logString = f"{today} {username} list_venv NA\n"
-        logfile.write(logString)
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        print("The log file was not found where it was expected to be")
+        with open(logfilePath, 'a') as logfile:
+            username = getpass.getuser()
+            today = datetime.date.today()
+            logString = f"{today} {username} list_venv NA\n"
+            logfile.write(logString)
+    except FileNotFoundError:
+        print("Warning: The log file was not found where it was expected to be")
         print("This action was not logged")
-        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Warning: Logging error: {e}")
         print("This action was not logged")
-        sys.exit(1)
 
 
 def main():
     parser = argparse.ArgumentParser(description="List Python virtual environments managed by ModuLair.")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-u", "--user", action= "store_true", help="Print private virtual environments in JSON format.")
-    group.add_argument("-g", "--group", help="Print shared virtual environments in JSON format.", default="-1")
+    group.add_argument("-u", "--user", action="store_true", 
+                      help="Print private virtual environments in JSON format.")
+    group.add_argument("-g", "--group", help="Print shared virtual environments in JSON format.", 
+                      default="-1")
 
     args = parser.parse_args()
+    
     print_venvs(args.user, args.group)
+    log_usage()
+
+
 if __name__ == "__main__":
     main()
