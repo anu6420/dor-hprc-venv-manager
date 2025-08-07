@@ -17,25 +17,21 @@ import argparse
 # Import the centralized metadata utilities
 from utils import load_all_metadata, load_user_metadata, load_group_metadata
 
-
 def get_terminal_width():
     try:
         return shutil.get_terminal_size().columns
     except:
         return 80
 
-
 def truncate_text(text, max_length):
     if len(text) <= max_length:
         return text
     return text[:max_length-3] + "..."
 
-
 def wrap_text(text, width):
     if len(text) <= width:
         return [text]
     return textwrap.wrap(text, width=width, break_long_words=True, break_on_hyphens=False)
-
 
 def print_environments_table(metadata, group_name="your $SCRATCH"):
     if len(metadata.get('environments', [])) == 0:
@@ -121,13 +117,20 @@ def print_environments_table(metadata, group_name="your $SCRATCH"):
                     text = wrapped_col[line_num] if line_num < len(wrapped_col) else ""
                     line += f"{text:<{col_widths[col_num]}}"
                 print(line.rstrip())
+def print_env_names(metadata):
+    envs = metadata.get('environments', [])
+    for env in envs:
+        print(env.get('name', 'N/A'))
 
 
 def print_venvs(args):
     if args.u:
         try:
             metadata = load_user_metadata()
-            print(json.dumps(metadata, indent=4))
+            if args.n:
+                print_env_names(metadata)
+            else:
+                print(json.dumps(metadata, indent=4))
         except Exception as e:
             print(f"Error loading user metadata: {e}")
             sys.exit(1)
@@ -137,8 +140,10 @@ def print_venvs(args):
         try:
             all_metadata = load_all_metadata()
             for group_name, group_metadata in all_metadata['groups'].items():
-                print(f"\nGroup: {group_name}")
-                print(json.dumps(group_metadata, indent=4))
+                if args.n:
+                    print_env_names(group_metadata)
+                else:
+                    print(json.dumps(group_metadata, indent=4))
         except Exception as e:
             print(f"Error loading group metadata: {e}")
             sys.exit(1)
@@ -147,22 +152,51 @@ def print_venvs(args):
     if args.a:
         try:
             all_metadata = load_all_metadata()
-            for group_name, group_metadata in all_metadata['groups'].items():
-                print_environments_table(group_metadata, f"group '{group_name}'")
-            print_environments_table(all_metadata['user'])
-
-            user_envs = all_metadata['user'].get('environments', [])
-            group_envs = []
-            for group_metadata in all_metadata['groups'].values():
-                group_envs.extend(group_metadata.get('environments', []))
-
-            if user_envs or group_envs:
-                example_env = user_envs[0].get('name') if user_envs else group_envs[0].get('name')
-                print(f"\nFor example, to activate '{example_env}' run this command:")
-                print(f"$ source activate_venv {example_env}\n")
+            if args.n:
+                user_envs = all_metadata['user'].get('environments', [])
+                group_envs = []
+                for group_metadata in all_metadata['groups'].values():
+                    group_envs.extend(group_metadata.get('environments', []))
+                all_envs = user_envs + group_envs
+                for env in all_envs:
+                    print(env.get('name', 'N/A'))
+            else:
+                print(json.dumps(all_metadata, indent=4))
         except Exception as e:
             print(f"Error loading environment metadata: {e}")
             sys.exit(1)
+        return
+
+    # Default behavior: print grouped tables + user envs + example activation
+    try:
+        all_metadata = load_all_metadata()
+
+        user_envs = all_metadata['user'].get('environments', [])
+        groups = all_metadata.get('groups', {})
+
+        # Print all groups with their environment tables
+        for group_name, group_metadata in groups.items():
+            print_environments_table(group_metadata, f"group '{group_name}'")
+
+        # Print user ($SCRATCH) envs
+        print_environments_table(all_metadata['user'], "your $SCRATCH")
+
+        # Show activation example if possible
+        example_env = None
+        if user_envs:
+            example_env = user_envs[0].get('name')
+        else:
+            for group_metadata in groups.values():
+                envs = group_metadata.get('environments', [])
+                if envs:
+                    example_env = envs[0].get('name')
+                    break
+        if example_env:
+            print(f"\nFor example, to activate '{example_env}' run this command:")
+            print(f"$ source activate_venv {example_env}\n")
+    except Exception as e:
+        print(f"Error loading environment metadata: {e}")
+        sys.exit(1)
 
 
 def log_usage():
@@ -183,26 +217,23 @@ def log_usage():
 
 def main():
     parser = argparse.ArgumentParser(description="List Python virtual environments managed by ModuLair.", add_help=False)
-    
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-u", action="store_true", help="List user's $SCRATCH environments.")
-    group.add_argument("-g", action="store_true", help="List user's group environments.")
-    group.add_argument("-a", action="store_true", help="List all user's environments.")
-    
+    group.add_argument("-u", action="store_true", help="List user's $SCRATCH environments in JSON format.")
+    group.add_argument("-g", action="store_true", help="List user's group environments in JSON format (all groups).")
+    group.add_argument("-a", action="store_true", help="List all user's environments in JSON format (user + groups).")
+
+    parser.add_argument("-n", action="store_true", help="List environment names only (use with -u, -g, or -a).")
     parser.add_argument("-h", action="store_true", help="Show this help menu.")
 
     args = parser.parse_args()
 
     if args.h:
         print("Usage: list_venvs [options]\n")
-        print("  -u   list user's $SCRATCH environments")
-        print("  -g   list user's group environments")
-        print("  -a   list all user's environments")
+        print("  -u   list user's $SCRATCH environments in JSON format")
+        print("  -g   list user's group environments in JSON format (all groups)")
+        print("  -a   list all user's environments in JSON format (user + groups)")
+        print("  -n   list environment names only (use with -u, -g, or -a)")
         print("  -h   show this help menu")
-        return
-
-    if not any([args.u, args.g, args.a]):
-        print("Use -h to see available options.")
         return
 
     print_venvs(args)
@@ -211,4 +242,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
