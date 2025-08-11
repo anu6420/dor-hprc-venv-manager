@@ -1,27 +1,21 @@
-# ModuLair — Python Virtual Environment Management for HPC
+#dor-hprc-venv-manager
 
-## Overview
-**ModuLair** is an **open-source** framework for managing Python virtual environments (**venv**) on **HPC clusters**.  
-It offers a consistent interface for creating, activating, listing, and deleting environments, while ensuring compatibility with system dependencies and **Lmod** module systems (e.g., **EasyBuild**).  
-
-ModuLair makes environment management reproducible and GUI-friendly through robust JSON metadata tracking.
-
+ModuLair - a Python virtual environment (venv) management tool suite
 ---
 
 ## Table of Contents
-- [Overview](#overview)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Creating Environments](#creating-environments)
   - [Default Behavior](#default-behavior)
-  - [-p — Specify Python Version](#-p--specify-python-version)
-  - [-t — Custom Toolchain](#-t--custom-toolchain)
+  - [Specify Python Version (-p flag)](#-p--specify-python-version)
+  - [Custom Toolchain (-t flag)](#-t--custom-toolchain)
 - [Managing Environments](#managing-environments)
   - [Listing Environments](#listing-environments)
   - [Activating an Environment](#activating-an-environment)
   - [Deleting an Environment](#deleting-an-environment)
 - [Sharing Environments](#sharing-environments)
-  - [-g - Group Sharing](#group-sharing)
+  - [Group Sharin (-g flag)](#group-sharing)
 - [Key Features](#key-features)
 
 ---
@@ -31,7 +25,7 @@ Clone this repository and run the `setup.sh` script. The ModuLair tools will be 
 Add this `bin` directory to your `PATH` for convenience.
 
 ```bash
-cd ~
+cd <directory of your choice>
 git clone git@github.com:tamu-edu/dor-hprc-venv-manager.git ModuLair
 cd ModuLair
 ./setup.sh
@@ -167,25 +161,13 @@ create_venv -g my_group my_env
 
 ---
 
-### Global Sharing
-
-(Admin only) — create cluster-wide environments for:
-
-* Workshops
-* Training sessions
-* Standardized stacks
-
----
-
 ## Key Features
 
-* Automatic detection of Python & toolchains
-* Manual override for Python version or toolchain
-* Group & global sharing for collaboration
-* Metadata-driven management for reproducibility & GUI integration
+* Automatic detection of Python & toolchains via EBROOT
+* Customizable Python version or toolchain selection
+* Shared environments for seamless collaboration
+* Metadata-driven management for reproducibility and GUI integration
 * Seamless activation with correct module loading
 
 ```
-
----
 
