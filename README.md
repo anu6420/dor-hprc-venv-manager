@@ -1,4 +1,3 @@
-````markdown
 # ModuLair — Python Virtual Environment Management for HPC
 
 ## Overview
