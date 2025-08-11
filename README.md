@@ -4,11 +4,6 @@
 **ModuLair** is an **open-source** framework for managing Python virtual environments (**venv**) on **HPC clusters**.  
 It offers a consistent interface for creating, activating, listing, and deleting environments, while ensuring compatibility with system dependencies and **Lmod** module systems (e.g., **EasyBuild**).  
 
-Built for:
-- **Individual users**
-- **Research groups**
-- **HPC centers**
-
 ModuLair makes environment management reproducible and GUI-friendly through robust JSON metadata tracking.
 
 ---
@@ -26,8 +21,7 @@ ModuLair makes environment management reproducible and GUI-friendly through robu
   - [Activating an Environment](#activating-an-environment)
   - [Deleting an Environment](#deleting-an-environment)
 - [Sharing Environments](#sharing-environments)
-  - [Group Sharing](#group-sharing)
-  - [Global Sharing](#global-sharing)
+  - [-g - Group Sharing](#group-sharing)
 - [Key Features](#key-features)
 
 ---
