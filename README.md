@@ -1,22 +1,198 @@
-# dor-hprc-venv-manager
-ModuLair - a Python virtual environment (venv) management tool suite
+````markdown
+# ModuLair — Python Virtual Environment Management for HPC
 
-# Installation
-Clone this repository into a directory of your choice. Once cloned, enter the repo directory and run the **setup.sh** script. The ModuLair scripts will be installed in a bin sub-directory.
-We suggest adding this bin directory to the PATH environment variable for more convenient use.
+## Overview
+**ModuLair** is an **open-source** framework for managing Python virtual environments (**venv**) on **HPC clusters**.  
+It offers a consistent interface for creating, activating, listing, and deleting environments, while ensuring compatibility with system dependencies and **Lmod** module systems (e.g., **EasyBuild**).  
+
+Built for:
+- **Individual users**
+- **Research groups**
+- **HPC centers**
+
+ModuLair makes environment management reproducible and GUI-friendly through robust JSON metadata tracking.
+
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Creating Environments](#creating-environments)
+  - [Default Behavior](#default-behavior)
+  - [-p — Specify Python Version](#-p--specify-python-version)
+  - [-t — Custom Toolchain](#-t--custom-toolchain)
+- [Managing Environments](#managing-environments)
+  - [Listing Environments](#listing-environments)
+  - [Activating an Environment](#activating-an-environment)
+  - [Deleting an Environment](#deleting-an-environment)
+- [Sharing Environments](#sharing-environments)
+  - [Group Sharing](#group-sharing)
+  - [Global Sharing](#global-sharing)
+- [Key Features](#key-features)
+
+---
+
+## Installation
+Clone this repository and run the `setup.sh` script. The ModuLair tools will be installed in a `bin` subdirectory.  
+Add this `bin` directory to your `PATH` for convenience.
+
 ```bash
-$ cd <directory of your choice>
-$ git clone git@github.com:tamu-edu/dor-hprc-venv-manager.git ModuLair
-$ cd ModuLair
-$ ./setup.sh
+cd ~
+git clone git@github.com:tamu-edu/dor-hprc-venv-manager.git ModuLair
+cd ModuLair
+./setup.sh
+````
+
+---
+
+## Quick Start
+
+```bash
+create_venv newEnv -d "Cool new environment"
+list_venvs
+source activate_venv newEnv
+delete_venv newEnv
 ```
 
-# Usage
-The lifecycle of a virtual environment on the context of these tools is shown in the commands below. 
+**What happens:**
+
+* Creates an environment named `newEnv` with a description
+* Lists environments to verify creation
+* Activates the environment
+* Deletes it when no longer needed
+
+---
+
+## Creating Environments
+
+### Default Behavior
+
+ModuLair detects the current Python interpreter and compiler toolchain using EasyBuild by reading EBROOT-prefixed variables (e.g., EBROOTPYTHON, EBROOTGCCCORE).
+
 ```bash
-$ create_venv newEnv -d "Cool new environment"
-$ list_venvs
-$ source activate_venv newEnv
-$ delete_venv newEnv
+create_venv my_env
 ```
-This example creates a new environment called **newEnv** with an apt description. Then, the user's environments are listed to confirm successful creation and the venv is activated. After it is no longer needed, the venv is deleted. 
+
+It will:
+
+* Detect loaded Python and compiler modules
+* Record toolchain info in metadata
+* Create a compatible environment
+
+---
+
+### -p — Specify Python Version
+
+```bash
+create_venv -p 3.11.5 my_env
+```
+
+* Skips EBROOT detection
+* Uses toolchains to find matching GCCcore and dependencies
+* Loads required modules
+* Saves metadata for reproducibility
+
+---
+
+### -t — Custom Toolchain
+
+```bash
+create_venv -t "intelpython/2023b custom_module" my_env
+```
+
+* Records listed modules in metadata
+* Auto-loads them during activation
+* Useful for non-EasyBuild or custom HPC stacks
+
+---
+
+## Managing Environments
+
+### Listing Environments
+
+```bash
+list_venvs
+```
+
+Displays:
+
+* Name
+* Description
+* Python and GCCcore versions/toolchains
+* Owner
+
+**Metadata Source:**
+`metadata.json` stored in:
+
+* User registry (default: `$SCRATCH`)
+* Group registry (via `-g`)
+
+**Flags:**
+
+* `-a` — List user and group environments
+* `-u` — List user environments
+* `-g` — List group environments
+* `-n` — Names only
+
+---
+
+### Activating an Environment
+
+```bash
+source activate_venv my_env
+```
+
+* Loads modules from metadata
+* Sources `bin/activate`
+
+---
+
+### Deleting an Environment
+
+```bash
+delete_venv my_env
+```
+
+* Removes the environment
+* Updates registry
+* Deletes related files
+
+---
+
+## Sharing Environments
+
+### Group Sharing
+
+```bash
+create_venv -g my_group my_env
+```
+
+* Stores venv in group registry
+* Accessible to all group members
+* Works with `-p` or `-t`
+
+---
+
+### Global Sharing
+
+(Admin only) — create cluster-wide environments for:
+
+* Workshops
+* Training sessions
+* Standardized stacks
+
+---
+
+## Key Features
+
+* Automatic detection of Python & toolchains
+* Manual override for Python version or toolchain
+* Group & global sharing for collaboration
+* Metadata-driven management for reproducibility & GUI integration
+* Seamless activation with correct module loading
+
+```
+
+---
+
