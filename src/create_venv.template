@@ -9,6 +9,9 @@ import re
 import getpass
 import datetime
 
+# Import centralized utilities
+from utils import get_user, get_user_metaloc, get_group_metaloc
+
 def get_py_versions():
     captureCommand = "/sw/local/bin/toolchains | grep Python > captured-output.txt"
     removeCommand = "rm captured-output.txt"
@@ -27,11 +30,6 @@ def get_py_versions():
                 py_versions[words[6]] = words[2]
     subprocess.run(removeCommand, shell=True)
     return [py_versions, tc_versions]
-
-def get_user():
-    scratch_path = os.environ.get('SCRATCH')
-    user = os.path.basename(scratch_path.rstrip('/'))
-    return user
 
 def check_group(group):
     user = get_user()
@@ -85,24 +83,24 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         print("Error: Invalid virtual environment name. It must not contain spaces or special characters.")
         sys.exit(1)
 
-    # Define path
+    # Define path using centralized utility functions
     if group != "":
         if check_group(group):
-            venv_path = os.path.join('/', 'scratch', 'group', group, 'virtual_envs', venv_name)
-            metadata_file = os.path.join('/', 'scratch', 'group', group, 'virtual_envs', 'metadata.json')
-            log_file = os.path.join('/', 'scratch', 'group', group,  'virtual_envs', 'creation.log')
+            group_metaloc = get_group_metaloc()
+            venv_path = os.path.join(group_metaloc, group, 'virtual_envs', venv_name)
+            metadata_file = os.path.join(group_metaloc, group, 'virtual_envs', 'metadata.json')
+            log_file = os.path.join(group_metaloc, group, 'virtual_envs', 'creation.log')
         else:
             print(f"Error: User not in group '{group}'.")
             sys.exit(1)
-
     else:
-        scratch = os.environ.get('SCRATCH')
-        venv_path = os.path.join(scratch, 'virtual_envs', venv_name)
-        metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
-        log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
+        user_metaloc = get_user_metaloc()
+        venv_path = os.path.join(user_metaloc, 'virtual_envs', venv_name)
+        metadata_file = os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
+        log_file = os.path.join(user_metaloc, 'virtual_envs', 'creation.log')
 
     # Create the virtual environment; there are differences in creation based on options used
-    print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
+    print(f"Creating virtual environment '{venv_name}' in your metadata directory. This may take a minute.")
     creation_commmand = ""
     if (user_python_version == "-1" and toolchain == ""):
         creation_command = f"python3 -m venv --system-site-packages {venv_path}"
