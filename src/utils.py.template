@@ -42,6 +42,15 @@ def get_user_groups():
     
     return group_list
 
+def get_user_metaloc():
+    """Get the user metadata location."""
+    return os.path.expandvars("<METDIR>")
+
+
+def get_group_metaloc():
+    """Get the group metadata base location."""
+    # For now, use /scratch/group as the base, but this could be made configurable in the future
+    return "/scratch/group"
 
 def load_user_metadata():
     """Load metadata from user's personal virtual environments."""
