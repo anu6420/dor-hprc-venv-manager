@@ -11,14 +11,18 @@ import subprocess
 
 
 def get_user():
-    """Get the current username from the SCRATCH path."""
-    scratch_path = os.environ.get('SCRATCH')
-    if scratch_path:
-        user = os.path.basename(scratch_path.rstrip('/'))
-    else:
-        # Fallback to USER environment variable
-        user = os.environ.get('USER', 'unknown')
-    return user
+    """Get the current username from the USER environment variable."""
+    return os.environ.get('USER', 'unknown')
+
+
+def get_user_metaloc():
+    """Get the user metadata location."""
+    return os.path.expandvars("<METDIR>")
+
+
+def get_group_metaloc():
+    """Get the group metadata base location."""
+    return os.path.expandvars("<GROUPMETDIR>")
 
 
 def get_user_groups():
@@ -42,19 +46,11 @@ def get_user_groups():
     
     return group_list
 
-def get_user_metaloc():
-    """Get the user metadata location."""
-    return os.path.expandvars("<METDIR>")
-
-
-def get_group_metaloc():
-    """Get the group metadata base location."""
-    # For now, use /scratch/group as the base, but this could be made configurable in the future
-    return "/scratch/group"
 
 def load_user_metadata():
     """Load metadata from user's personal virtual environments."""
-    metadata_path = os.path.expandvars("<METDIR>/virtual_envs/metadata.json")
+    user_metaloc = get_user_metaloc()
+    metadata_path = os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
     
     try:
         with open(metadata_path, 'r') as file:
@@ -69,7 +65,8 @@ def load_user_metadata():
 
 def load_group_metadata(group_name):
     """Load metadata from a specific group's shared virtual environments."""
-    json_path = os.path.join("/", "scratch", "group", group_name, "virtual_envs", "metadata.json")
+    group_metaloc = get_group_metaloc()
+    json_path = os.path.join(group_metaloc, group_name, "virtual_envs", "metadata.json")
     
     try:
         with open(json_path, 'r') as file:
@@ -160,10 +157,11 @@ def get_environment_path(env_name, source_type, source_name):
         str: Full path to the environment directory
     """
     if source_type == 'user':
-        base_path = os.path.expandvars("<METDIR>")
-        return os.path.join(base_path, 'virtual_envs', env_name)
+        user_metaloc = get_user_metaloc()
+        return os.path.join(user_metaloc, 'virtual_envs', env_name)
     elif source_type == 'group':
-        return os.path.join('/', 'scratch', 'group', source_name, 'virtual_envs', env_name)
+        group_metaloc = get_group_metaloc()
+        return os.path.join(group_metaloc, source_name, 'virtual_envs', env_name)
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
 
@@ -180,10 +178,11 @@ def get_metadata_file_path(source_type, source_name):
         str: Full path to the metadata.json file
     """
     if source_type == 'user':
-        base_path = os.path.expandvars("<METDIR>")
-        return os.path.join(base_path, 'virtual_envs', 'metadata.json')
+        user_metaloc = get_user_metaloc()
+        return os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
     elif source_type == 'group':
-        return os.path.join('/', 'scratch', 'group', source_name, 'virtual_envs', 'metadata.json')
+        group_metaloc = get_group_metaloc()
+        return os.path.join(group_metaloc, source_name, 'virtual_envs', 'metadata.json')
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
 
