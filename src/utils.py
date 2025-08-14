@@ -41,7 +41,7 @@ def get_user_groups():
 
 def load_user_metadata():
     """Load metadata from user's personal virtual environments."""
-    metadata_path = os.path.expandvars("$SCRATCH/virtual_envs/metadata.json")
+    metadata_path = os.path.expandvars("/scratch/user/$USER/virtual_envs/metadata.json")
     
     try:
         with open(metadata_path, 'r') as file:
