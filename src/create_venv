@@ -130,7 +130,7 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
     update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description)
     
     # Activate the environment in the shell
-    logfilePath = os.path.join('/sw/hprc/sw/dor-hprc-tools-dashboard-utils/logs/venv.log')
+    logfilePath = os.path.join('<LOGDIR>/venv.log')
 
     try:
         logfile = open(logfilePath,'a')
