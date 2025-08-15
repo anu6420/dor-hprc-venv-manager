@@ -250,5 +250,3 @@ create_venv -g my_group my_env
 * Metadata-driven management for reproducibility and GUI integration
 * Seamless activation with correct module loading
 
-```
-
