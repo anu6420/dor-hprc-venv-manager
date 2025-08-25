@@ -19,17 +19,33 @@ def get_py_versions():
     py_versions = {}
     tc_versions = {}
     with open("captured-output.txt", "r") as file:
-        next(file)
         # Grabbing the Python version and mapping it to corresponding GCC version
         for line in file:
-            words = line.split()
-            tc_versions[words[0]]  = [words[2], words[6]] 
-            if words[6] in py_versions:
-                continue
-            else:
-                py_versions[words[6]] = words[2]
+            # Extract Python version and GCC version from the line using regex
+            python_match = re.search(r'Python/(\d+\.\d+\.\d+)', line)
+            gcc_match = re.search(r'GCC(?:core)?/(\d+\.\d+\.\d+)', line)
+            toolchain_match = re.search(r'^(\w+/\d+\.\d+\w*)', line.strip())
+            
+            if python_match and gcc_match and toolchain_match:
+                python_version = f"Python/{python_match.group(1)}"
+                gcc_version = f"GCCcore/{gcc_match.group(1)}"
+                toolchain_name = toolchain_match.group(1)
+                
+                # Store in tc_versions: toolchain -> [gcc_version, python_version]
+                tc_versions[toolchain_name] = [gcc_version, python_version]
+                
+                # Store in py_versions: python_version -> gcc_version (avoid duplicates)
+                if python_version not in py_versions:
+                    py_versions[python_version] = gcc_version
     subprocess.run(removeCommand, shell=True)
     return [py_versions, tc_versions]
+
+def extract_python_version_from_toolchain(toolchain):
+    """Extract Python version from toolchain string"""
+    match = re.search(r'Python/(\d+\.\d+\.\d+)', toolchain)
+    if match:
+        return f"Python/{match.group(1)}"
+    return None
 
 def check_group(group):
     user = get_user()
@@ -69,14 +85,31 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         _versions = get_py_versions()
         versions = _versions[0]
         python_version = f"Python/{user_python_version}"
-        gcccore_version = versions[python_version]
+        if python_version in versions:
+            gcccore_version = versions[python_version]
+        else:
+            print(f"Error: Python version {python_version} not found in available toolchains.")
+            sys.exit(1)
     
-    # Toolchains does not require a python version, but we still set the variable
+    # Toolchain mode: handle both predefined toolchains and custom module lists
     else:
         _tc = get_py_versions()
-        versions = _tc[1]
-        python_version = versions[toolchain][1]
-        gcccore_version = versions[toolchain][0]
+        py_versions = _tc[0]
+        tc_versions = _tc[1]
+        
+        # Check if it's a predefined toolchain (like foss/2024a, intel/2024a)
+        if toolchain in tc_versions:
+            python_version = tc_versions[toolchain][1]
+            gcccore_version = tc_versions[toolchain][0]
+        else:
+            # It's a custom module list, extract Python version from it
+            python_version = extract_python_version_from_toolchain(toolchain)
+            if python_version and python_version in py_versions:
+                gcccore_version = py_versions[python_version]
+            else:
+                # No Python version found or not available, set as N/A
+                python_version = "N/A"
+                gcccore_version = "N/A"
 
     # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
@@ -101,7 +134,7 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
 
     # Create the virtual environment; there are differences in creation based on options used
     print(f"Creating virtual environment '{venv_name}' in your metadata directory. This may take a minute.")
-    creation_commmand = ""
+    creation_command = ""
     if (user_python_version == "-1" and toolchain == ""):
         creation_command = f"python3 -m venv --system-site-packages {venv_path}"
     elif (user_python_version != "-1"):
