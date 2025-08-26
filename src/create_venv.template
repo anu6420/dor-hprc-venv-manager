@@ -19,24 +19,15 @@ def get_py_versions():
     py_versions = {}
     tc_versions = {}
     with open("captured-output.txt", "r") as file:
+        next(file)
         # Grabbing the Python version and mapping it to corresponding GCC version
         for line in file:
-            # Extract Python version and GCC version from the line using regex
-            python_match = re.search(r'Python/(\d+\.\d+\.\d+)', line)
-            gcc_match = re.search(r'GCC(?:core)?/(\d+\.\d+\.\d+)', line)
-            toolchain_match = re.search(r'^(\w+/\d+\.\d+\w*)', line.strip())
-            
-            if python_match and gcc_match and toolchain_match:
-                python_version = f"Python/{python_match.group(1)}"
-                gcc_version = f"GCCcore/{gcc_match.group(1)}"
-                toolchain_name = toolchain_match.group(1)
-                
-                # Store in tc_versions: toolchain -> [gcc_version, python_version]
-                tc_versions[toolchain_name] = [gcc_version, python_version]
-                
-                # Store in py_versions: python_version -> gcc_version (avoid duplicates)
-                if python_version not in py_versions:
-                    py_versions[python_version] = gcc_version
+            words = line.split()
+            tc_versions[words[0]]  = [words[2], words[6]]
+            if words[6] in py_versions:
+                continue
+            else:
+                py_versions[words[6]] = words[2]
     subprocess.run(removeCommand, shell=True)
     return [py_versions, tc_versions]
 
