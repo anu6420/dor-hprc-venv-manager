@@ -21,16 +21,97 @@ ModuLair - a Python virtual environment (venv) management tool suite
 ---
 
 ## Installation
-Clone this repository and run the `setup.sh` script. The ModuLair tools will be installed in a `bin` subdirectory.  
-Add this `bin` directory to your `PATH` for convenience.
+
+---
+
+The **dor-hprc-venv-manager** tools can be installed in two ways: **Makefile or `setup.sh`**
+
+Both methods will:
+
+* Process template scripts in `src/`
+* Substitute your configured paths
+* Install the processed scripts into the `bin/` directory
+* Create a writable log file in `logs/`
+
+---
+
+### 1. Prerequisites
+
+* **bash** shell
+* Write access to your chosen metadata and group metadata directories
+
+---
+
+### 2. Clone the Repository
 
 ```bash
 cd <directory of your choice>
 git clone git@github.com:tamu-edu/dor-hprc-venv-manager.git ModuLair
 cd ModuLair
-./setup.sh
-````
+```
 
+---
+
+### 3. Choose Metadata Locations
+
+The tools need two metadata directories:
+
+* **User metadata directory (`METDIR` or `MODULAIR_METADATA_DIR`)**
+  Stores virtual environment metadata for your personal environments.
+
+* **Group metadata directory (`GROUPMETDIR` or `MODULAIR_GROUP_METADATA_DIR`)**
+  Stores virtual environment metadata for shared group environments.
+
+**Examples:**
+
+| HPC Environment Type  | User Metadata Path    | Group Metadata Path |
+| --------------------- | --------------------- | ------------------- |
+| Scratch-based system  | `/scratch/user/$USER` | `/scratch/group`    |
+
+---
+
+### 4. Installation Methods
+
+#### **Option A — Using Makefile**
+
+```bash
+# Build and install directly to bin/
+make install \
+    METDIR="/path/to/user/metadata" \
+    GROUPMETDIR="/path/to/group/metadata"
+```
+
+Additional useful targets:
+
+```bash
+make all         - Build the project (default)
+make build       - Process templates and prepare scripts
+make install     - Build and install scripts to bin directory
+make dev         - Development build (build but don't install)
+make clean       - Remove generated files
+make clean-all   - Remove generated files and logs
+make help        - Show this help message
+```
+
+---
+
+#### **Option B — Using setup.sh**
+
+```bash
+MODULAIR_METADATA_DIR="/path/to/user/metadata" \
+MODULAIR_GROUP_METADATA_DIR="/path/to/group/metadata" \
+./setup.sh
+```
+
+---
+
+### 5. Add to Your PATH
+
+After installation, add the `bin/` directory to your PATH:
+
+```bash
+export PATH="/path/to/dor-hprc-venv-manager/bin:$PATH"
+```
 ---
 
 ## Quick Start
@@ -168,6 +249,4 @@ create_venv -g my_group my_env
 * Shared environments for seamless collaboration
 * Metadata-driven management for reproducibility and GUI integration
 * Seamless activation with correct module loading
-
-```
 

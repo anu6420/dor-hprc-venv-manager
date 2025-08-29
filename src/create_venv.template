@@ -9,24 +9,50 @@ import re
 import getpass
 import datetime
 
+# Import centralized utilities
+from utils import get_user, get_user_metaloc, get_group_metaloc
+
 def get_py_versions():
     captureCommand = "/sw/local/bin/toolchains | grep Python > captured-output.txt"
     removeCommand = "rm captured-output.txt"
     subprocess.run(captureCommand, shell=True)
-    versions = {}
+    py_versions = {}
+    tc_versions = {}
     with open("captured-output.txt", "r") as file:
         next(file)
         # Grabbing the Python version and mapping it to corresponding GCC version
         for line in file:
             words = line.split()
-            if words[6] in versions:
+            tc_versions[words[0]]  = [words[2], words[6]]
+            if words[6] in py_versions:
                 continue
             else:
-                versions[words[6]] = words[2]
+                py_versions[words[6]] = words[2]
     subprocess.run(removeCommand, shell=True)
-    return versions
+    return [py_versions, tc_versions]
 
-def create_virtualenv(venv_name, description, toolchain, user_python_version):
+def extract_python_version_from_toolchain(toolchain):
+    """Extract Python version from toolchain string"""
+    match = re.search(r'Python/(\d+\.\d+\.\d+)', toolchain)
+    if match:
+        return f"Python/{match.group(1)}"
+    return None
+
+def check_group(group):
+    user = get_user()
+    check_command = f"groups {user} | grep {group} > check.txt"
+    removeCommand = "rm check.txt"
+
+    subprocess.run(check_command, shell=True)
+    with open("check.txt", "r") as file:
+        first_char = file.read(1)
+        if not first_char:
+            subprocess.run(removeCommand, shell=True)
+            return False
+    subprocess.run(removeCommand, shell=True)
+    return True
+
+def create_virtualenv(venv_name, description, group, toolchain, user_python_version):
     # If toolchain/Python version not provided, check ebroot as normal
     if(user_python_version == "-1" and toolchain == ""):
         # Check to make sure Python is loaded
@@ -47,29 +73,59 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
     
     # Otherwise, use the provided python version
     elif(user_python_version != "-1"): 
-        versions = get_py_versions()
+        _versions = get_py_versions()
+        versions = _versions[0]
         python_version = f"Python/{user_python_version}"
-        gcccore_version = versions[python_version]
+        if python_version in versions:
+            gcccore_version = versions[python_version]
+        else:
+            print(f"Error: Python version {python_version} not found in available toolchains.")
+            sys.exit(1)
     
-    # Toolchains does not require a python version, but we still set the variable
+    # Toolchain mode: handle both predefined toolchains and custom module lists
     else:
-        python_version = "N/A"
-        gcccore_version = "N/A"
+        _tc = get_py_versions()
+        py_versions = _tc[0]
+        tc_versions = _tc[1]
+        
+        # Check if it's a predefined toolchain (like foss/2024a, intel/2024a)
+        if toolchain in tc_versions:
+            python_version = tc_versions[toolchain][1]
+            gcccore_version = tc_versions[toolchain][0]
+        else:
+            # It's a custom module list, extract Python version from it
+            python_version = extract_python_version_from_toolchain(toolchain)
+            if python_version and python_version in py_versions:
+                gcccore_version = py_versions[python_version]
+            else:
+                # No Python version found or not available, set as N/A
+                python_version = "N/A"
+                gcccore_version = "N/A"
 
     # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
         print("Error: Invalid virtual environment name. It must not contain spaces or special characters.")
         sys.exit(1)
 
-    # Define paths
-    scratch = os.environ.get('SCRATCH')
-    venv_path = os.path.join(scratch, 'virtual_envs', venv_name)
-    metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
-    log_file = os.path.join(scratch, 'virtual_envs', 'creation.log')
+    # Define path using centralized utility functions
+    if group != "":
+        if check_group(group):
+            group_metaloc = get_group_metaloc()
+            venv_path = os.path.join(group_metaloc, group, 'virtual_envs', venv_name)
+            metadata_file = os.path.join(group_metaloc, group, 'virtual_envs', 'metadata.json')
+            log_file = os.path.join(group_metaloc, group, 'virtual_envs', 'creation.log')
+        else:
+            print(f"Error: User not in group '{group}'.")
+            sys.exit(1)
+    else:
+        user_metaloc = get_user_metaloc()
+        venv_path = os.path.join(user_metaloc, 'virtual_envs', venv_name)
+        metadata_file = os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
+        log_file = os.path.join(user_metaloc, 'virtual_envs', 'creation.log')
 
     # Create the virtual environment; there are differences in creation based on options used
-    print(f"Creating virtual environment '{venv_name}' in your scratch directory. This may take a minute.")
-    creation_commmand = ""
+    print(f"Creating virtual environment '{venv_name}' in your metadata directory. This may take a minute.")
+    creation_command = ""
     if (user_python_version == "-1" and toolchain == ""):
         creation_command = f"python3 -m venv --system-site-packages {venv_path}"
     elif (user_python_version != "-1"):
@@ -93,7 +149,7 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
     # log_creation()
 
     # Update the metadata file
-    update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain, description)
+    update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description)
     
     # Activate the environment in the shell
     logfilePath = os.path.join('<LOGDIR>/venv.log')
@@ -120,7 +176,7 @@ def create_virtualenv(venv_name, description, toolchain, user_python_version):
 # def log_creation():
 #     continue
 
-def update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain, description):
+def update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description):
     """Updates the metadata JSON file with the environment name, Python and GCCcore versions, and description."""
     # Load or initialize metadata
     if os.path.exists(metadata_file):
@@ -135,7 +191,9 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, t
         "python_version": python_version,
         "GCCcore_version": gcccore_version,
         "description": description,
-        "toolchain": toolchain
+        "toolchain": toolchain,
+        "group": group,
+        "owner": get_user()
     })
 
     # Write updated metadata back to the file
@@ -145,7 +203,8 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, t
 def main():
     parser = argparse.ArgumentParser(description="Create a Python virtual environment.")
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
-    parser.add_argument("-d", "--description", help="Optional description of the environment", default="") 
+    parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
+    parser.add_argument("-g", "--group", help="Optional name of the group for shared environment", default="")
     # Make toolchains and python version mutually exclusive
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-t", "--toolchain", help="Space-separated list of modules input as a string that should be loaded during creation and before activating the venv", default="")
@@ -153,7 +212,7 @@ def main():
     args = parser.parse_args()
 
     print(args)
-    create_virtualenv(args.venv_name, args.description, args.toolchain, args.python)
+    create_virtualenv(args.venv_name, args.description, args.group, args.toolchain, args.python)
 
 if __name__ == "__main__":
     main()

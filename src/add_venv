@@ -42,12 +42,17 @@ def add_virtualvenv(path_to_venv, desc, user_python_version):
 
     _versions = get_py_versions()
     versions = _versions[0]
-    python_version = f"Python/{user_python_version}"
-    gcccore_version = versions[python_version]
+    python_key = f"Python/{user_python_version}"
+    if python_key not in versions:
+        print(f"Error: Python version {user_python_version} not available in toolchains.")
+        print(f"Available versions: {', '.join(versions.keys())}")
+        sys.exit(1)
+
+    gcccore_version = versions[python_key]
 
     scratch = os.environ.get('SCRATCH')
     metadata_file = os.path.join(scratch, 'virtual_envs', 'metadata.json')
-    update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain='', description=desc)
+    update_metadata(metadata_file, venv_name, python_key, gcccore_version, toolchain='', description=desc)
 
     print(f"{venv_name} added to the manager, run 'list_venvs' to see all environments in the manager")
     print(f"'source activate_venv {venv_name}' to activate.")
@@ -87,13 +92,23 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, t
         json.dump(metadata, f, indent=4)
 
 def main():
-    parser = argparse.ArgumentParser(description="Add existing Python virtual environment to manager.")
-    parser.add_argument("venv_path", help="Path of the current virtual environment (no spaces or special characters)")
-    parser.add_argument("-d", "--description", help="Optional description of the environment", default="") 
-    # Make toolchains and python version mutually exclusive
-    group = parser.add_mutually_exclusive_group()
-    #group.add_argument("-t", "--toolchain", help="Space-separated list of modules input as a string that should be loaded during creation and before activating the venv", default="")
-    parser.add_argument("python_version", help="Specify the Python version that this venv should be created for")
+    parser = argparse.ArgumentParser(
+        description="Add existing Python virtual environment to manager."
+    )
+    parser.add_argument(
+        "venv_path",
+        help="Path of the current virtual environment (no spaces or special characters)"
+    )
+    parser.add_argument(
+        "python_version",
+        help="Specify the Python version that this venv should be created for"
+    )
+    parser.add_argument(
+        "-d", "--description",
+        help="Optional description of the environment",
+        default=""
+    )
+
     args = parser.parse_args()
 
     print(args)
@@ -101,3 +116,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

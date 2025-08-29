@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#eval "$(/sw/hprc/sw/dor-hprc-venv-manager/src/json_to_command $1)"
-eval "$(/scratch/user/axa3537/dor-hprc-venv-manager/src/json_to_command $1)"
+eval "$(/sw/hprc/sw/dor-hprc-venv-manager/src/json_to_command $1)"
 
 # log the action
 today=`date +"%Y-%m-%d"`

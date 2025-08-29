@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import subprocess
+import argparse
+import re
+import getpass
+import datetime
+
+# Import centralized utilities
+from utils import get_user, get_user_metaloc
+
+def get_py_versions():
+    captureCommand = "/sw/local/bin/toolchains | grep Python > captured-output.txt"
+    removeCommand = "rm captured-output.txt"
+    subprocess.run(captureCommand, shell=True)
+    py_versions = {}
+    tc_versions = {}
+    with open("captured-output.txt", "r") as file:
+        next(file)
+        # Grabbing the Python version and mapping it to corresponding GCC version
+        for line in file:
+            words = line.split()
+            tc_versions[words[0]]  = [words[2], words[6]] 
+            if words[6] in py_versions:
+                continue
+            else:
+                py_versions[words[6]] = words[2]
+    subprocess.run(removeCommand, shell=True)
+    return [py_versions, tc_versions]
+
+def detect_venv_python_version(venv_path):
+    """
+    Helper function to detect the Python version of an existing virtual environment.
+    Returns the version string (e.g., "3.11.5") or None if detection fails.
+    """
+    try:
+        # Check the pyvenv.cfg file which contains Python version info
+        pyvenv_cfg = os.path.join(venv_path, "pyvenv.cfg")
+        if os.path.exists(pyvenv_cfg):
+            with open(pyvenv_cfg, 'r') as f:
+                for line in f:
+                    if line.startswith('version'):
+                        # Extract version from line like "version = 3.11.5"
+                        version_match = re.search(r'version\s*=\s*(\d+\.\d+\.\d+)', line)
+                        if version_match:
+                            return version_match.group(1)
+        
+        # Fallback: try to run the venv's python executable
+        python_exe = os.path.join(venv_path, "bin", "python")
+        if os.path.exists(python_exe):
+            result = subprocess.run([python_exe, "--version"], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                # Parse "Python 3.11.5" output
+                version_match = re.search(r'Python (\d+\.\d+\.\d+)', result.stdout)
+                if version_match:
+                    return version_match.group(1)
+    
+    except Exception as e:
+        print(f"Warning: Could not auto-detect Python version: {e}")
+    
+    return None
+
+def validate_venv_path(venv_path):
+    """
+    Helper function to validate that the path is actually a virtual environment.
+    """
+    if not os.path.exists(venv_path):
+        print(f"Error: Path '{venv_path}' does not exist.")
+        return False
+    
+    # Check for typical venv structure
+    bin_dir = os.path.join(venv_path, "bin")
+    python_exe = os.path.join(bin_dir, "python")
+    activate_script = os.path.join(bin_dir, "activate")
+    
+    if not os.path.exists(bin_dir):
+        print(f"Error: '{venv_path}' does not appear to be a virtual environment (missing bin/ directory).")
+        return False
+    
+    if not os.path.exists(python_exe):
+        print(f"Error: '{venv_path}' does not appear to be a virtual environment (missing python executable).")
+        return False
+    
+    if not os.path.exists(activate_script):
+        print(f"Error: '{venv_path}' does not appear to be a virtual environment (missing activate script).")
+        return False
+    
+    return True
+
+def add_virtualvenv(path_to_venv, desc, user_python_version):
+    # Validate the venv path first
+    if not validate_venv_path(path_to_venv):
+        sys.exit(1)
+    
+    # Auto-detect Python version if not provided
+    if user_python_version is None:
+        print("Auto-detecting Python version...")
+        detected_version = detect_venv_python_version(path_to_venv)
+        if detected_version:
+            user_python_version = detected_version
+            print(f"Detected Python version: {user_python_version}")
+        else:
+            print("Error: Could not auto-detect Python version.")
+            print("Please specify the Python version manually:")
+            print(f"  add_venv {path_to_venv} <python_version> -d \"{desc}\"")
+            print("Example: add_venv /path/to/venv 3.11.5 -d \"My environment\"")
+            sys.exit(1)
+    
+    venv_name = os.path.basename(path_to_venv.rstrip('/'))
+    user_metaloc = get_user_metaloc()
+    centralized_path = os.path.join(user_metaloc, 'virtual_envs', venv_name)
+
+    # Check if environment name already exists
+    metadata_file = os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            try:
+                metadata = json.load(f)
+                existing_names = [env.get('name') for env in metadata.get('environments', [])]
+                if venv_name in existing_names:
+                    print(f"Error: An environment named '{venv_name}' already exists in the manager.")
+                    print("Choose a different name or remove the existing environment first.")
+                    sys.exit(1)
+            except json.JSONDecodeError:
+                pass  # If metadata is corrupted, continue anyway
+
+    print(f"Adding virtual environment '{venv_name}' to manager...")
+    
+    # Create virtual_envs directory if it doesn't exist
+    venv_dir = os.path.dirname(centralized_path)
+    os.makedirs(venv_dir, exist_ok=True)
+    
+    move_command = f"mv {path_to_venv} {centralized_path}"
+    subprocess.run(move_command, shell=True)
+
+    symlink_command = f"ln -s {centralized_path} {path_to_venv}"
+    subprocess.run(symlink_command, shell=True)
+
+    _versions = get_py_versions()
+    versions = _versions[0]
+    python_version = f"Python/{user_python_version}"
+    gcccore_version = versions.get(python_version, "GCCcore/unknown")
+
+    update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain='', description=desc)
+
+    print(f"✓ {venv_name} added to the manager successfully!")
+    print(f"  Original location: {path_to_venv} (now a symlink)")
+    print(f"  Managed location: {centralized_path}")
+    print(f"  Python version: {user_python_version}")
+    print(f"  Description: {desc if desc else '(none)'}")
+    print(f"\nTo see all environments: list_venvs")
+    print(f"To activate: source activate_venv {venv_name}")
+
+    logfilePath = os.path.join('<LOGDIR>/venv.log')
+    try:
+        logfile = open(logfilePath,'a')
+        username = getpass.getuser()
+        today = datetime.date.today()
+        logString = f"{today} {username} add_venv {venv_name}\n"
+        logfile.write(logString)
+    except Exception as e:
+        print(f"Warning: Logging error: {e}")
+        print("The environment was added successfully, but this action was not logged.")
+
+def update_metadata(metadata_file, venv_name, python_version, gcccore_version, toolchain, description):
+    """Updates the metadata JSON file with the environment name, Python and GCCcore versions, and description."""
+    # Load or initialize metadata
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            try:
+                metadata = json.load(f)
+            except json.JSONDecodeError:
+                print("Warning: Existing metadata file is corrupted. Creating new metadata.")
+                metadata = {"environments": []}
+    else:
+        metadata = {"environments": []}
+
+    # Add the new environment entry
+    metadata["environments"].append({
+        "name": venv_name,
+        "python_version": python_version,
+        "GCCcore_version": gcccore_version,
+        "description": description,
+        "toolchain": toolchain,
+        "owner": get_user()
+    })
+
+    # Write updated metadata back to the file
+    with open(metadata_file, 'w') as f:
+        json.dump(metadata, f, indent=4)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Add existing Python virtual environment to ModuLair manager.",
+        epilog="""Examples:
+  add_venv /path/to/venv                    # Auto-detect Python version
+  add_venv /path/to/venv 3.11.5            # Specify Python version
+  add_venv /path/to/venv 3.11.5 -d "My env" # With description
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    parser.add_argument("venv_path", 
+                       help="Path to the existing virtual environment directory")
+    parser.add_argument("python_version", nargs='?', default=None,
+                       help="Python version the venv was created with (e.g., 3.11.5). If not provided, will attempt to auto-detect.")
+    parser.add_argument("-d", "--description", 
+                       help="Optional description of the environment", default="") 
+
+    args = parser.parse_args()
+
+    # Show what we're about to do
+    print(f"Adding virtual environment from: {args.venv_path}")
+    if args.python_version:
+        print(f"Python version: {args.python_version}")
+    else:
+        print("Python version: (will auto-detect)")
+    if args.description:
+        print(f"Description: {args.description}")
+    print()
+
+    add_virtualvenv(args.venv_path, args.description, args.python_version)
+
+if __name__ == "__main__":
+    main()
