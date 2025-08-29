@@ -55,7 +55,6 @@ def check_group(group):
 def create_virtualenv(venv_name, description, group, toolchain, user_python_version):
     # If toolchain/Python version not provided, check ebroot as normal
     if(user_python_version == "-1" and toolchain == ""):
-        # Check to make sure Python is loaded
         eb_root_python = os.environ.get('EBROOTPYTHON')
         if not eb_root_python:
             print("Error: EBROOTPYTHON is not set. Please load a Python module with the 'ml' command.")
@@ -64,14 +63,12 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
             print("$ ml spider Python/3.x.x")
             sys.exit(1)
 
-        # Extract Python and GCCcore versions from EBROOTPYTHON path
         python_version_match = re.search(r"Python/(\d+\.\d+\.\d+)", eb_root_python)
         gcccore_version_match = re.search(r"GCCcore-(\d+\.\d+\.\d+)", eb_root_python)
 
         python_version = f"Python/{python_version_match.group(1)}" if python_version_match else "Python/unknown"
         gcccore_version = f"GCCcore/{gcccore_version_match.group(1)}" if gcccore_version_match else "GCCcore/unknown"
     
-    # Otherwise, use the provided python version
     elif(user_python_version != "-1"): 
         _versions = get_py_versions()
         versions = _versions[0]
@@ -82,32 +79,26 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
             print(f"Error: Python version {python_version} not found in available toolchains.")
             sys.exit(1)
     
-    # Toolchain mode: handle both predefined toolchains and custom module lists
     else:
         _tc = get_py_versions()
         py_versions = _tc[0]
         tc_versions = _tc[1]
         
-        # Check if it's a predefined toolchain (like foss/2024a, intel/2024a)
         if toolchain in tc_versions:
             python_version = tc_versions[toolchain][1]
             gcccore_version = tc_versions[toolchain][0]
         else:
-            # It's a custom module list, extract Python version from it
             python_version = extract_python_version_from_toolchain(toolchain)
             if python_version and python_version in py_versions:
                 gcccore_version = py_versions[python_version]
             else:
-                # No Python version found or not available, set as N/A
                 python_version = "N/A"
                 gcccore_version = "N/A"
 
-    # Validate the environment name
     if not venv_name or not venv_name.isidentifier():
         print("Error: Invalid virtual environment name. It must not contain spaces or special characters.")
         sys.exit(1)
 
-    # Define path using centralized utility functions
     if group != "":
         if check_group(group):
             group_metaloc = get_group_metaloc()
@@ -123,7 +114,24 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         metadata_file = os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
         log_file = os.path.join(user_metaloc, 'virtual_envs', 'creation.log')
 
-    # Create the virtual environment; there are differences in creation based on options used
+    # Duplicate check: short, strict messages
+    if os.path.exists(metadata_file):
+        with open(metadata_file, 'r') as f:
+            try:
+                metadata = json.load(f)
+                for env in metadata.get("environments", []):
+                    if env["name"] == venv_name:
+                        print("Error: venv already exists")
+                        sys.exit(1)
+            except json.JSONDecodeError:
+                metadata = {"environments": []}
+                with open(metadata_file, 'w') as f2:
+                    json.dump(metadata, f2, indent=4)
+
+    if os.path.exists(venv_path):
+        print("Error: venv already exists")
+        sys.exit(1)
+
     print(f"Creating virtual environment '{venv_name}' in your metadata directory. This may take a minute.")
     creation_command = ""
     if (user_python_version == "-1" and toolchain == ""):
@@ -134,7 +142,6 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         creation_command = f"source /etc/profile && module load {toolchain} && python3 -m venv --system-site-packages {venv_path}"
     subprocess.run(creation_command, shell=True)
 
-    # Upgrade pip and install jupyter if needed
     activate_script = os.path.join(venv_path, 'bin', 'activate')
     activate_command = ""
     if (user_python_version == "-1" and toolchain == ""):
@@ -145,18 +152,12 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         activate_command = f"source /etc/profile && module load {toolchain} && source {activate_script}"      
     subprocess.run([f"{activate_command} && pip install --upgrade pip"], shell=True)
 
-    # Log
-    # log_creation()
-
-    # Update the metadata file
     update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description)
     
-    # Activate the environment in the shell
     logfilePath = os.path.join('<LOGDIR>/venv.log')
 
     try:
         logfile = open(logfilePath,'a')
-
         username = getpass.getuser()
         today = datetime.date.today()
         logString = f"{today} {username} create_venv {venv_name}\n"
@@ -173,19 +174,14 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
     print("")
     print("Finally, if you want to use this environment for Jupyter, run \n$ pip install jupyter\nafter activating\n")
 
-# def log_creation():
-#     continue
-
 def update_metadata(metadata_file, venv_name, python_version, gcccore_version, group, toolchain, description):
     """Updates the metadata JSON file with the environment name, Python and GCCcore versions, and description."""
-    # Load or initialize metadata
     if os.path.exists(metadata_file):
         with open(metadata_file, 'r') as f:
             metadata = json.load(f)
     else:
         metadata = {"environments": []}
 
-    # Add the new environment entry
     metadata["environments"].append({
         "name": venv_name,
         "python_version": python_version,
@@ -196,7 +192,6 @@ def update_metadata(metadata_file, venv_name, python_version, gcccore_version, g
         "owner": get_user()
     })
 
-    # Write updated metadata back to the file
     with open(metadata_file, 'w') as f:
         json.dump(metadata, f, indent=4)
 
@@ -205,7 +200,6 @@ def main():
     parser.add_argument("venv_name", help="Name of the virtual environment (no spaces or special characters)")
     parser.add_argument("-d", "--description", help="Optional description of the environment", default="")
     parser.add_argument("-g", "--group", help="Optional name of the group for shared environment", default="")
-    # Make toolchains and python version mutually exclusive
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-t", "--toolchain", help="Space-separated list of modules input as a string that should be loaded during creation and before activating the venv", default="")
     group.add_argument("-p", "--python", help="Specify the Python version that this venv should be created for", default="-1")
@@ -216,3 +210,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
