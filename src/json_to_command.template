@@ -36,13 +36,14 @@ def print_activation_commands(environment_name):
         print(f"Error determining environment path: {e}")
         sys.exit(1)
     
+    
     # Print the module load commands based on the environment configuration
-    if python_version != "N/A" and python_version != "":
+    if toolchain != "N/A" and toolchain != "":
+        # Environment was created with a toolchain
+        print(f"ml {toolchain}")    
+    elif python_version != "N/A" and python_version != "":
         # Environment was created with a specific Python version
         print(f"ml {gcc_version} {python_version}")
-    elif toolchain != "N/A" and toolchain != "":
-        # Environment was created with a toolchain
-        print(f"ml {toolchain}")
     else:
         # Legacy environment or no modules specified
         # Don't print any module load command - user should have modules already loaded
