@@ -48,6 +48,7 @@ activate_venv: $(SRCDIR)/activate_venv.template
 	@cp $< $@
 	@sed -i 's|<BINDIR>|$(BINDIR)|g' $@
 	@sed -i 's|<LOGDIR>|$(LOGDIR)|g' $@
+	@chmod +x $@
 
 list_venvs: $(SRCDIR)/list_venvs.template
 	@echo "Processing list_venvs..."
@@ -55,6 +56,7 @@ list_venvs: $(SRCDIR)/list_venvs.template
 	@sed -i 's|<LOGDIR>|$(LOGDIR)|g' $@
 	@sed -i 's|<METDIR>|$(METDIR)|g' $@
 	@sed -i 's|<GROUPMETDIR>|$(GROUPMETDIR)|g' $@
+	@chmod +x $@
 
 create_venv: $(SRCDIR)/create_venv.template
 	@echo "Processing create_venv..."
@@ -62,6 +64,7 @@ create_venv: $(SRCDIR)/create_venv.template
 	@sed -i 's|<LOGDIR>|$(LOGDIR)|g' $@
 	@sed -i 's|<METDIR>|$(METDIR)|g' $@
 	@sed -i 's|<GROUPMETDIR>|$(GROUPMETDIR)|g' $@
+	@chmod +x $@
 
 delete_venv: $(SRCDIR)/delete_venv.template
 	@echo "Processing delete_venv..."
@@ -69,6 +72,7 @@ delete_venv: $(SRCDIR)/delete_venv.template
 	@sed -i 's|<LOGDIR>|$(LOGDIR)|g' $@
 	@sed -i 's|<METDIR>|$(METDIR)|g' $@
 	@sed -i 's|<GROUPMETDIR>|$(GROUPMETDIR)|g' $@
+	@chmod +x $@
 
 add_venv:
 	@echo "Processing add_venv..."
@@ -86,6 +90,7 @@ add_venv:
 		echo "Error: Neither add_venv.template nor add_venv found in $(SRCDIR)"; \
 		exit 1; \
 	fi
+	@chmod +x $@
 
 json_to_command:
 	@echo "Processing json_to_command..."
@@ -117,6 +122,7 @@ install: build
 	@mv utils.py $(BINDIR)/
 	@mv json_to_command $(BINDIR)/
 	@mv add_venv $(BINDIR)/
+	@chmod +x $(BINDIR)/*
 	@echo ""
 	@echo "Installation completed successfully!"
 	@echo ""
@@ -142,19 +148,19 @@ dev: directories $(SCRIPTS)
 	@echo "Scripts are ready for testing in the current directory."
 	@echo "Use 'make install' to move them to the bin directory."
 
-# Clean target - removes generated files
-.PHONY: clean
-clean:
-	@echo "Cleaning up..."
-	@rm -f activate_venv list_venvs create_venv delete_venv add_venv utils.py json_to_command
-	@rm -rf $(BINDIR)
-	@echo "Clean completed."
+
+# Clean log target - removes generated logs
+.PHONY: clean-log
+clean-log: 
+	@echo "Removing logs..."
+	@rm -rf $(LOGDIR)
+	@echo "Log clean completed."
 
 # Clean all target - removes generated files and logs
 .PHONY: clean-all
-clean-all: clean
-	@echo "Removing logs..."
-	@rm -rf $(LOGDIR)
+clean-all: 
+	@echo "Removing generated files and logs..."
+	@rm -rf $(BINDIR) $(LOGDIR)
 	@echo "Full clean completed."
 
 # Help target
@@ -167,8 +173,8 @@ help:
 	@echo "  build       - Process templates and prepare scripts"
 	@echo "  install     - Build and install scripts to bin directory"
 	@echo "  dev         - Development build (build but don't install)"
-	@echo "  clean       - Remove generated files"
 	@echo "  clean-all   - Remove generated files and logs"
+	@echo "  clean-log   - Remove logs"
 	@echo "  help        - Show this help message"
 	@echo ""
 	@echo "Configuration variables (REQUIRED):"
