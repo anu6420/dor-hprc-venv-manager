@@ -13,7 +13,7 @@ import signal
 from utils import (
     get_user,
     get_user_metaloc,
-    get_group_metaloc,
+    get_group_create_dir,
     get_user_groups,
     load_user_metadata,
     load_group_metadata,
@@ -93,10 +93,10 @@ def cmd_create(args):
 
     if group != "":
         if check_group(group):
-            group_metaloc = get_group_metaloc()
-            venv_path = os.path.join(group_metaloc, group, 'virtual_envs', venv_name)
-            metadata_file = os.path.join(group_metaloc, group, 'virtual_envs', 'metadata.json')
-            log_file = os.path.join(group_metaloc, group, 'virtual_envs', 'creation.log')
+            group_create_dir = get_group_create_dir()
+            venv_path = os.path.join(group_create_dir, group, 'virtual_envs', venv_name)
+            metadata_file = os.path.join(group_create_dir, group, 'virtual_envs', 'metadata.json')
+            log_file = os.path.join(group_create_dir, group, 'virtual_envs', 'creation.log')
         else:
             print(f"Error: User not in group '{group}'.")
             sys.exit(1)

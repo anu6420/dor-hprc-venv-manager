@@ -23,15 +23,35 @@ def get_user_metaloc():
     return os.path.expandvars("<METDIR>")
 
 
-def get_group_metaloc():
-    """Get the group metadata base location."""
+def get_group_create_dir():
+    """Get the primary group directory for creating new group environments."""
     return os.path.expandvars("<GROUPMETDIR>")
 
 
+def get_group_search_paths():
+    """Get the ordered list of base paths to search for group environments."""
+    paths_str = "<GROUP_SEARCH_PATHS>"
+    paths = [p.strip() for p in paths_str.split(':') if p.strip()]
+    if not paths:
+        paths = [get_group_create_dir()]
+    return paths
+
+
 def get_user_groups():
-    """Get all groups the current user belongs to."""
+    """Get all groups the current user belongs to, including configured global groups."""
     groups_cmd_out = subprocess.run(["groups"], stdout=subprocess.PIPE)
     group_list = groups_cmd_out.stdout.decode().strip().split()
+
+    global_groups_file = "<GLOBAL_GROUPS_FILE>"
+    try:
+        with open(global_groups_file, 'r') as f:
+            config = json.load(f)
+            for g in config.get('global_groups', []):
+                if g not in group_list:
+                    group_list.append(g)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
     return group_list
 
 
@@ -51,27 +71,38 @@ def load_user_metadata():
         raise Exception(f"Unexpected error reading user metadata: {e}")
 
 
+def find_group_base_path(group_name):
+    """Find which search path contains the metadata for a given group.
+
+    Returns the first path that has a readable metadata.json, or the primary
+    create directory as a fallback (e.g. when the caller is about to create).
+    """
+    for base_path in get_group_search_paths():
+        json_path = os.path.join(base_path, group_name, "virtual_envs", "metadata.json")
+        if os.path.exists(json_path):
+            return base_path
+    return get_group_create_dir()
+
+
 def load_group_metadata(group_name):
-    """Load metadata from a specific group's shared virtual environments."""
-    group_metaloc = get_group_metaloc()
-    json_path = os.path.join(group_metaloc, group_name, "virtual_envs", "metadata.json")
-    
-    try:
-        with open(json_path, 'r') as file:
-            data = json.load(file)
-        return data
-    except FileNotFoundError:
-        # Silently return empty dict - this is expected for groups without shared environments
-        return {"environments": []}
-    except json.JSONDecodeError as e:
-        print(f"Warning: The metadata file for group '{group_name}' is corrupted or not in JSON format")
-        return {"environments": []}
-    except PermissionError:
-        # Silently return empty dict - user may not have access to all group directories
-        return {"environments": []}
-    except Exception as e:
-        print(f"Warning: Unexpected error occurred while reading metadata for group '{group_name}': {e}")
-        return {"environments": []}
+    """Load metadata from a specific group, searching all configured paths."""
+    for base_path in get_group_search_paths():
+        json_path = os.path.join(base_path, group_name, "virtual_envs", "metadata.json")
+        try:
+            with open(json_path, 'r') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError:
+            print(f"Warning: The metadata file for group '{group_name}' at '{base_path}' is corrupted or not in JSON format")
+            continue
+        except PermissionError:
+            continue
+        except Exception as e:
+            print(f"Warning: Unexpected error reading metadata for group '{group_name}' at '{base_path}': {e}")
+            continue
+
+    return {"environments": []}
 
 
 def load_all_metadata():
@@ -135,12 +166,12 @@ def find_environment_by_name(env_name):
 def get_environment_path(env_name, source_type, source_name):
     """
     Get the filesystem path for an environment.
-    
+
     Args:
         env_name (str): Name of the environment
         source_type (str): Either 'user' or 'group'
         source_name (str): Username for 'user' or group name for 'group'
-        
+
     Returns:
         str: Full path to the environment directory
     """
@@ -148,8 +179,8 @@ def get_environment_path(env_name, source_type, source_name):
         user_metaloc = get_user_metaloc()
         return os.path.join(user_metaloc, 'virtual_envs', env_name)
     elif source_type == 'group':
-        group_metaloc = get_group_metaloc()
-        return os.path.join(group_metaloc, source_name, 'virtual_envs', env_name)
+        base_path = find_group_base_path(source_name)
+        return os.path.join(base_path, source_name, 'virtual_envs', env_name)
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
 
@@ -157,11 +188,11 @@ def get_environment_path(env_name, source_type, source_name):
 def get_metadata_file_path(source_type, source_name):
     """
     Get the path to the metadata file for a given source.
-    
+
     Args:
         source_type (str): Either 'user' or 'group'
         source_name (str): Username for 'user' or group name for 'group'
-        
+
     Returns:
         str: Full path to the metadata.json file
     """
@@ -169,8 +200,8 @@ def get_metadata_file_path(source_type, source_name):
         user_metaloc = get_user_metaloc()
         return os.path.join(user_metaloc, 'virtual_envs', 'metadata.json')
     elif source_type == 'group':
-        group_metaloc = get_group_metaloc()
-        return os.path.join(group_metaloc, source_name, 'virtual_envs', 'metadata.json')
+        base_path = find_group_base_path(source_name)
+        return os.path.join(base_path, source_name, 'virtual_envs', 'metadata.json')
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
 

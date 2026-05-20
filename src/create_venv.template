@@ -10,7 +10,7 @@ import getpass
 import datetime
 
 # Import centralized utilities
-from utils import get_user, get_user_metaloc, get_group_metaloc
+from utils import get_user, get_user_metaloc, get_group_create_dir
 
 def get_py_versions():
     captureCommand = "toolchains | grep Python > captured-output.txt"
@@ -101,10 +101,10 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
 
     if group != "":
         if check_group(group):
-            group_metaloc = get_group_metaloc()
-            venv_path = os.path.join(group_metaloc, group, 'virtual_envs', venv_name)
-            metadata_file = os.path.join(group_metaloc, group, 'virtual_envs', 'metadata.json')
-            log_file = os.path.join(group_metaloc, group, 'virtual_envs', 'creation.log')
+            group_create_dir = get_group_create_dir()
+            venv_path = os.path.join(group_create_dir, group, 'virtual_envs', venv_name)
+            metadata_file = os.path.join(group_create_dir, group, 'virtual_envs', 'metadata.json')
+            log_file = os.path.join(group_create_dir, group, 'virtual_envs', 'creation.log')
         else:
             print(f"Error: User not in group '{group}'.")
             sys.exit(1)

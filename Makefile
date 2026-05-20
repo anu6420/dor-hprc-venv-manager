@@ -16,6 +16,17 @@ ifndef GROUPMETDIR
 $(error GROUPMETDIR must be specified. Example: make install GROUPMETDIR="/your/group/metadata/path")
 endif
 
+# Colon-separated list of paths to search for group environments (read).
+# The first path (GROUPMETDIR) is always the write path for new group envs.
+# Add extra paths for system/global envs, e.g.:
+#   GROUP_SEARCH_PATHS=/scratch/groups:/sw/hprc/sw/modulair/hprc_envs
+GROUP_SEARCH_PATHS ?= $(GROUPMETDIR)
+
+# Path to a JSON file listing group names that are visible to all users.
+# Format: {"global_groups": ["group1", "group2"]}
+# Leave empty to disable (no global groups).
+GLOBAL_GROUPS_FILE ?=
+
 # Template and output files
 TEMPLATES := activate_venv.template list_venvs.template create_venv.template delete_venv.template add_venv.template utils.py.template json_to_command.template
 SCRIPTS := activate_venv list_venvs create_venv delete_venv utils.py json_to_command add_venv
@@ -31,7 +42,9 @@ build: directories $(SCRIPTS)
 	@echo "Binary directory: $(BINDIR)"
 	@echo "Log directory: $(LOGDIR)"
 	@echo "User metadata location: $(METDIR)"
-	@echo "Group metadata location: $(GROUPMETDIR)"
+	@echo "Group create location: $(GROUPMETDIR)"
+	@echo "Group search paths: $(GROUP_SEARCH_PATHS)"
+	@echo "Global groups file: $(GLOBAL_GROUPS_FILE)"
 
 # Create necessary directories
 .PHONY: directories
@@ -110,6 +123,8 @@ utils.py: $(SRCDIR)/utils.py.template
 	@cp $< $@
 	@sed -i 's|<METDIR>|$(METDIR)|g' $@
 	@sed -i 's|<GROUPMETDIR>|$(GROUPMETDIR)|g' $@
+	@sed -i 's|<GROUP_SEARCH_PATHS>|$(GROUP_SEARCH_PATHS)|g' $@
+	@sed -i 's|<GLOBAL_GROUPS_FILE>|$(GLOBAL_GROUPS_FILE)|g' $@
 
 # Install target - copies processed scripts to bin directory
 .PHONY: install
@@ -178,15 +193,24 @@ help:
 	@echo "  help        - Show this help message"
 	@echo ""
 	@echo "Configuration variables (REQUIRED):"
-	@echo "  METDIR      - User metadata directory location (REQUIRED)"
-	@echo "  GROUPMETDIR - Group metadata directory location (REQUIRED)"
+	@echo "  METDIR             - User metadata directory (REQUIRED)"
+	@echo "  GROUPMETDIR        - Group create/write directory (REQUIRED)"
+	@echo ""
+	@echo "Configuration variables (OPTIONAL):"
+	@echo "  GROUP_SEARCH_PATHS - Colon-separated read paths for group envs"
+	@echo "                       Default: GROUPMETDIR only"
+	@echo "                       Example: /scratch/groups:/sw/hprc/sw/modulair/hprc_envs"
+	@echo "  GLOBAL_GROUPS_FILE - Path to JSON file with global group names"
+	@echo "                       Format: {\"global_groups\": [\"groupA\", \"groupB\"]}"
 	@echo ""
 	@echo "Examples for different HPC environments:"
 	@echo "  # SCRATCH-based systems:"
 	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/group"
 	@echo ""
-	@echo "  # Home directory systems:"
-	@echo "  make install METDIR=/home/\$$USER/.venvs GROUPMETDIR=/shared/groups"
+	@echo "  # With system envs path and global groups:"
+	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/groups \\"
+	@echo "    GROUP_SEARCH_PATHS=/scratch/groups:/sw/hprc/sw/modulair/hprc_envs \\"
+	@echo "    GLOBAL_GROUPS_FILE=/sw/hprc/sw/modulair/global_groups.json"
 	@echo ""
 	@echo "  # Development/testing:"
 	@echo "  make dev METDIR=/tmp/\$$USER/test GROUPMETDIR=/tmp/groups"

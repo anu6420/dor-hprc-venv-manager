@@ -29,12 +29,20 @@ fi
 metadataloc="$MODULAIR_METADATA_DIR"
 groupmetaloc="$MODULAIR_GROUP_METADATA_DIR"
 
+# Optional: colon-separated list of paths to search for group envs (defaults to groupmetaloc)
+groupsearchpaths="${MODULAIR_GROUP_SEARCH_PATHS:-${groupmetaloc}}"
+
+# Optional: path to JSON file listing global group names visible to all users
+globalgroupsfile="${MODULAIR_GLOBAL_GROUPS_FILE:-}"
+
 echo "Setting up ModuLair with the following configuration:"
 echo "  Root directory: $rootdir"
 echo "  Binary directory: $default_bindir"
 echo "  Log directory: $default_logdir"
 echo "  User metadata location: $metadataloc"
-echo "  Group metadata location: $groupmetaloc"
+echo "  Group create location: $groupmetaloc"
+echo "  Group search paths: $groupsearchpaths"
+echo "  Global groups file: $globalgroupsfile"
 echo
 
 # Create necessary directories
@@ -50,6 +58,8 @@ if [ -f "src/modulair_cli.template" ]; then
     sed -i "s|<LOGDIR>|${default_logdir}|g" modulair_cli.py
     sed -i "s|<METDIR>|${metadataloc}|g" modulair_cli.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" modulair_cli.py
+    sed -i "s|<GROUP_SEARCH_PATHS>|${groupsearchpaths}|g" modulair_cli.py
+    sed -i "s|<GLOBAL_GROUPS_FILE>|${globalgroupsfile}|g" modulair_cli.py
     chmod +x modulair_cli.py
 else
     echo "Error: modulair_cli.template not found in src/"
@@ -84,10 +94,14 @@ if [ -f "src/utils.py.template" ]; then
     cp src/utils.py.template utils.py
     sed -i "s|<METDIR>|${metadataloc}|g" utils.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" utils.py
+    sed -i "s|<GROUP_SEARCH_PATHS>|${groupsearchpaths}|g" utils.py
+    sed -i "s|<GLOBAL_GROUPS_FILE>|${globalgroupsfile}|g" utils.py
 elif [ -f "src/utils.py" ]; then
     cp src/utils.py utils.py
     sed -i "s|<METDIR>|${metadataloc}|g" utils.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" utils.py
+    sed -i "s|<GROUP_SEARCH_PATHS>|${groupsearchpaths}|g" utils.py
+    sed -i "s|<GLOBAL_GROUPS_FILE>|${globalgroupsfile}|g" utils.py
 else
     echo "Error: Neither utils.py.template nor utils.py found in src/"
     exit 1
