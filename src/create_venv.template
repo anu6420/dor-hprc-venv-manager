@@ -8,6 +8,7 @@ import argparse
 import re
 import getpass
 import datetime
+import shutil
 
 # Import centralized utilities
 from utils import get_user, get_user_metaloc, get_group_metaloc
@@ -140,9 +141,24 @@ def create_virtualenv(venv_name, description, group, toolchain, user_python_vers
         creation_command = f"source /etc/profile && module load {gcccore_version} {python_version} && python3 -m venv --system-site-packages {venv_path}"
     else:
         creation_command = f"source /etc/profile && module load {toolchain} && python3 -m venv --system-site-packages {venv_path}"
-    subprocess.run(creation_command, shell=True, executable='/bin/bash')
+    result = subprocess.run(creation_command, shell=True, executable='/bin/bash')
 
     activate_script = os.path.join(venv_path, 'bin', 'activate')
+    pyvenv_cfg = os.path.join(venv_path, 'pyvenv.cfg')
+
+    # Verify the venv was actually created (e.g. quota errors can kill venv
+    # creation partway through, leaving a directory with nothing usable in
+    # it). Without this, the leftover directory blocks recreation via the
+    # "venv already exists" check above, but has no metadata entry, so it
+    # can't be removed with delete_venv either.
+    if result.returncode != 0 or not os.path.exists(pyvenv_cfg) or not os.path.exists(activate_script):
+        print(f"Error: Failed to create virtual environment '{venv_name}'.")
+        print("This can happen due to a disk quota issue or an interrupted creation process.")
+        if os.path.exists(venv_path):
+            shutil.rmtree(venv_path, ignore_errors=True)
+            print(f"Removed incomplete environment directory at '{venv_path}'.")
+        sys.exit(1)
+
     activate_command = ""
     if (user_python_version == "-1" and toolchain == ""):
         activate_command = f"source {activate_script}"
