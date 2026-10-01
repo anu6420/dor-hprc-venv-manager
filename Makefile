@@ -6,6 +6,7 @@ ROOTDIR := $(PWD)
 BINDIR := $(ROOTDIR)/bin
 LOGDIR := $(ROOTDIR)/logs
 SRCDIR := $(ROOTDIR)/src
+GLOBALGROUPSFILE := $(BINDIR)/global_groups.json
 
 # Metadata locations
 ifndef METDIR
@@ -14,10 +15,6 @@ endif
 
 ifndef GROUPMETDIR
 $(error GROUPMETDIR must be specified. Example: make install GROUPMETDIR="/your/group/metadata/path")
-endif
-
-ifndef GLOBALGROUPSFILE
-$(error GLOBALGROUPSFILE must be specified. Example: make install GLOBALGROUPSFILE="/scratch/group/modulair_global_groups.json")
 endif
 
 # Template and output files
@@ -30,7 +27,7 @@ all: build
 
 # Build target - processes templates and prepares scripts
 .PHONY: build
-build: directories $(SCRIPTS)
+build: directories global-groups-config $(SCRIPTS)
 	@echo "Build completed successfully!"
 	@echo "Binary directory: $(BINDIR)"
 	@echo "Log directory: $(LOGDIR)"
@@ -46,6 +43,10 @@ directories:
 	@mkdir -p $(LOGDIR)
 	@touch $(LOGDIR)/venv.log
 	@chmod uog+rw $(LOGDIR)/venv.log 2>/dev/null || echo "Skipped changing permission for $(LOGDIR)/venv.log"
+
+.PHONY: global-groups-config
+global-groups-config: directories
+	@if [ ! -f "$(GLOBALGROUPSFILE)" ]; then cp global_groups.json.example "$(GLOBALGROUPSFILE)"; fi
 
 # Template processing rules
 activate_venv: $(SRCDIR)/activate_venv.template
@@ -149,7 +150,7 @@ install: build
 
 # Development build target
 .PHONY: dev
-dev: directories $(SCRIPTS)
+dev: directories global-groups-config $(SCRIPTS)
 	@echo "Development build completed!"
 	@echo "Scripts are ready for testing in the current directory."
 	@echo "Use 'make install' to move them to the bin directory."
@@ -186,17 +187,17 @@ help:
 	@echo "Configuration variables (REQUIRED):"
 	@echo "  METDIR       - User metadata directory location (REQUIRED)"
 	@echo "  GROUPMETDIR  - Group metadata directory location (REQUIRED)"
-	@echo "  GLOBALGROUPSFILE - JSON file listing globally visible group environments (REQUIRED)"
+	@echo "  Global groups are configured in $(GLOBALGROUPSFILE) after installation"
 	@echo ""
 	@echo "Examples for different HPC environments:"
 	@echo "  # SCRATCH-based systems:"
-	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/group GLOBALGROUPSFILE=/scratch/group/modulair_global_groups.json"
+	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/group"
 	@echo ""
 	@echo "  # Home directory systems:"
-	@echo "  make install METDIR=/home/\$$USER/.venvs GROUPMETDIR=/shared/groups GLOBALGROUPSFILE=/shared/groups/modulair_global_groups.json"
+	@echo "  make install METDIR=/home/\$$USER/.venvs GROUPMETDIR=/shared/groups"
 	@echo ""
 	@echo "  # Development/testing:"
-	@echo "  make dev METDIR=/tmp/\$$USER/test GROUPMETDIR=/tmp/groups GLOBALGROUPSFILE=/tmp/global_groups.json"
+	@echo "  make dev METDIR=/tmp/\$$USER/test GROUPMETDIR=/tmp/groups"
 
 # Declare all targets as phony to avoid conflicts with files of the same name
 .PHONY: all build install dev clean clean-all help directories

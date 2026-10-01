@@ -26,15 +26,9 @@ if [ -z "$MODULAIR_GROUP_METADATA_DIR" ]; then
     exit 1
 fi
 
-if [ -z "$MODULAIR_GLOBAL_GROUPS_FILE" ]; then
-    echo "Error: MODULAIR_GLOBAL_GROUPS_FILE environment variable must be set."
-    echo "Example: MODULAIR_GLOBAL_GROUPS_FILE=\"/scratch/group/modulair_global_groups.json\" ./setup.sh"
-    exit 1
-fi
-
 metadataloc="$MODULAIR_METADATA_DIR"
 groupmetaloc="$MODULAIR_GROUP_METADATA_DIR"
-globalgroupsfile="$MODULAIR_GLOBAL_GROUPS_FILE"
+globalgroupsfile="${default_bindir}/global_groups.json"
 
 echo "Setting up ModuLair with the following configuration:"
 echo "  Root directory: $rootdir"
@@ -141,6 +135,11 @@ mv utils.py bin/
 mv json_to_command bin/
 mv add_venv bin/
 mv modulair_cli.py bin/
+
+# Preserve an administrator-edited configuration on subsequent installations.
+if [ ! -f "${globalgroupsfile}" ]; then
+    cp global_groups.json.example "${globalgroupsfile}"
+fi
 
 # Create shell wrapper for modulair that handles source'd activate
 cat > modulair << 'WRAPPER'

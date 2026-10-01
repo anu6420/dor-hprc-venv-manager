@@ -55,16 +55,13 @@ cd ModuLair
 
 ### 3. Choose Metadata Locations
 
-The tools need two metadata directories and one global-groups configuration file:
+The tools need two metadata directories:
 
 * **User metadata directory (`METDIR` or `MODULAIR_METADATA_DIR`)**
   Stores virtual environment metadata for your personal environments.
 
 * **Group metadata directory (`GROUPMETDIR` or `MODULAIR_GROUP_METADATA_DIR`)**
   Stores virtual environment metadata for shared group environments.
-
-* **Global groups file (`GLOBALGROUPSFILE` or `MODULAIR_GLOBAL_GROUPS_FILE`)**
-  JSON file listing group environments that should be visible to every user.
 
 **Examples:**
 
@@ -82,8 +79,7 @@ The tools need two metadata directories and one global-groups configuration file
 # Build and install directly to bin/
 make install \
     METDIR="/path/to/user/metadata" \
-    GROUPMETDIR="/path/to/group/metadata" \
-    GLOBALGROUPSFILE="/path/to/global_groups.json"
+    GROUPMETDIR="/path/to/group/metadata"
 ```
 
 Additional useful targets:
@@ -105,7 +101,6 @@ make help        - Show this help message
 ```bash
 MODULAIR_METADATA_DIR="/path/to/user/metadata" \
 MODULAIR_GROUP_METADATA_DIR="/path/to/group/metadata" \
-MODULAIR_GLOBAL_GROUPS_FILE="/path/to/global_groups.json" \
 ./setup.sh
 ```
 
@@ -263,8 +258,9 @@ modulair create -g my_group my_env
 ### Globally Visible Group Environments
 
 Global environments use the same group layout and commands as ordinary group
-environments. List their names in the configured JSON file (see
-`global_groups.json.example`):
+environments. Installation creates `bin/global_groups.json` from
+`global_groups.json.example`. This is the only configuration file
+administrators edit to add or remove global group names:
 
 ```json
 {
