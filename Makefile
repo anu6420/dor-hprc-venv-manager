@@ -16,12 +16,8 @@ ifndef GROUPMETDIR
 $(error GROUPMETDIR must be specified. Example: make install GROUPMETDIR="/your/group/metadata/path")
 endif
 
-ifndef SYSTEMENVDIR
-$(error SYSTEMENVDIR must be specified. Example: make install SYSTEMENVDIR="/sw/hprc/sw/modulair/hprc_envs")
-endif
-
-ifndef SYSTEMADMINGROUP
-$(error SYSTEMADMINGROUP must be specified. Example: make install SYSTEMADMINGROUP="hprc")
+ifndef GLOBALGROUPSFILE
+$(error GLOBALGROUPSFILE must be specified. Example: make install GLOBALGROUPSFILE="/scratch/group/modulair_global_groups.json")
 endif
 
 # Template and output files
@@ -40,7 +36,7 @@ build: directories $(SCRIPTS)
 	@echo "Log directory: $(LOGDIR)"
 	@echo "User metadata location: $(METDIR)"
 	@echo "Group metadata location: $(GROUPMETDIR)"
-	@echo "System env location: $(SYSTEMENVDIR)"
+	@echo "Global groups configuration: $(GLOBALGROUPSFILE)"
 
 # Create necessary directories
 .PHONY: directories
@@ -119,8 +115,7 @@ utils.py: $(SRCDIR)/utils.py.template
 	@cp $< $@
 	@sed -i 's|<METDIR>|$(METDIR)|g' $@
 	@sed -i 's|<GROUPMETDIR>|$(GROUPMETDIR)|g' $@
-	@sed -i 's|<SYSTEMENVDIR>|$(SYSTEMENVDIR)|g' $@
-	@sed -i 's|<SYSTEMADMINGROUP>|$(SYSTEMADMINGROUP)|g' $@
+	@sed -i 's|<GLOBALGROUPSFILE>|$(GLOBALGROUPSFILE)|g' $@
 
 # Install target - copies processed scripts to bin directory
 .PHONY: install
@@ -191,18 +186,17 @@ help:
 	@echo "Configuration variables (REQUIRED):"
 	@echo "  METDIR       - User metadata directory location (REQUIRED)"
 	@echo "  GROUPMETDIR  - Group metadata directory location (REQUIRED)"
-	@echo "  SYSTEMENVDIR      - System-wide hprc_envs directory location (REQUIRED)"
-	@echo "  SYSTEMADMINGROUP  - Group with permission to manage system envs (REQUIRED)"
+	@echo "  GLOBALGROUPSFILE - JSON file listing globally visible group environments (REQUIRED)"
 	@echo ""
 	@echo "Examples for different HPC environments:"
 	@echo "  # SCRATCH-based systems:"
-	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/group SYSTEMENVDIR=/sw/hprc/sw/modulair/hprc_envs SYSTEMADMINGROUP=hprc"
+	@echo "  make install METDIR=/scratch/user/\$$USER GROUPMETDIR=/scratch/group GLOBALGROUPSFILE=/scratch/group/modulair_global_groups.json"
 	@echo ""
 	@echo "  # Home directory systems:"
-	@echo "  make install METDIR=/home/\$$USER/.venvs GROUPMETDIR=/shared/groups SYSTEMENVDIR=/sw/hprc/sw/modulair/hprc_envs SYSTEMADMINGROUP=hprc"
+	@echo "  make install METDIR=/home/\$$USER/.venvs GROUPMETDIR=/shared/groups GLOBALGROUPSFILE=/shared/groups/modulair_global_groups.json"
 	@echo ""
 	@echo "  # Development/testing:"
-	@echo "  make dev METDIR=/tmp/\$$USER/test GROUPMETDIR=/tmp/groups SYSTEMENVDIR=/tmp/hprc_envs SYSTEMADMINGROUP=testadmins"
+	@echo "  make dev METDIR=/tmp/\$$USER/test GROUPMETDIR=/tmp/groups GLOBALGROUPSFILE=/tmp/global_groups.json"
 
 # Declare all targets as phony to avoid conflicts with files of the same name
 .PHONY: all build install dev clean clean-all help directories

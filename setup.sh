@@ -26,22 +26,15 @@ if [ -z "$MODULAIR_GROUP_METADATA_DIR" ]; then
     exit 1
 fi
 
-if [ -z "$MODULAIR_SYSTEM_ENV_DIR" ]; then
-    echo "Error: MODULAIR_SYSTEM_ENV_DIR environment variable must be set."
-    echo "Example: MODULAIR_SYSTEM_ENV_DIR=\"/sw/hprc/sw/modulair/hprc_envs\" ./setup.sh"
-    exit 1
-fi
-
-if [ -z "$MODULAIR_SYSTEM_ADMIN_GROUP" ]; then
-    echo "Error: MODULAIR_SYSTEM_ADMIN_GROUP environment variable must be set."
-    echo "Example: MODULAIR_SYSTEM_ADMIN_GROUP=\"hprc\" ./setup.sh"
+if [ -z "$MODULAIR_GLOBAL_GROUPS_FILE" ]; then
+    echo "Error: MODULAIR_GLOBAL_GROUPS_FILE environment variable must be set."
+    echo "Example: MODULAIR_GLOBAL_GROUPS_FILE=\"/scratch/group/modulair_global_groups.json\" ./setup.sh"
     exit 1
 fi
 
 metadataloc="$MODULAIR_METADATA_DIR"
 groupmetaloc="$MODULAIR_GROUP_METADATA_DIR"
-systemenvdir="$MODULAIR_SYSTEM_ENV_DIR"
-systemadmingroup="$MODULAIR_SYSTEM_ADMIN_GROUP"
+globalgroupsfile="$MODULAIR_GLOBAL_GROUPS_FILE"
 
 echo "Setting up ModuLair with the following configuration:"
 echo "  Root directory: $rootdir"
@@ -49,8 +42,7 @@ echo "  Binary directory: $default_bindir"
 echo "  Log directory: $default_logdir"
 echo "  User metadata location: $metadataloc"
 echo "  Group metadata location: $groupmetaloc"
-echo "  System env location: $systemenvdir"
-echo "  System admin group: $systemadmingroup"
+echo "  Global groups configuration: $globalgroupsfile"
 echo
 
 # Create necessary directories
@@ -66,8 +58,6 @@ if [ -f "src/modulair_cli.template" ]; then
     sed -i "s|<LOGDIR>|${default_logdir}|g" modulair_cli.py
     sed -i "s|<METDIR>|${metadataloc}|g" modulair_cli.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" modulair_cli.py
-    sed -i "s|<SYSTEMENVDIR>|${systemenvdir}|g" modulair_cli.py
-    sed -i "s|<SYSTEMADMINGROUP>|${systemadmingroup}|g" modulair_cli.py
     chmod +x modulair_cli.py
 else
     echo "Error: modulair_cli.template not found in src/"
@@ -102,14 +92,12 @@ if [ -f "src/utils.py.template" ]; then
     cp src/utils.py.template utils.py
     sed -i "s|<METDIR>|${metadataloc}|g" utils.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" utils.py
-    sed -i "s|<SYSTEMENVDIR>|${systemenvdir}|g" utils.py
-    sed -i "s|<SYSTEMADMINGROUP>|${systemadmingroup}|g" utils.py
+    sed -i "s|<GLOBALGROUPSFILE>|${globalgroupsfile}|g" utils.py
 elif [ -f "src/utils.py" ]; then
     cp src/utils.py utils.py
     sed -i "s|<METDIR>|${metadataloc}|g" utils.py
     sed -i "s|<GROUPMETDIR>|${groupmetaloc}|g" utils.py
-    sed -i "s|<SYSTEMENVDIR>|${systemenvdir}|g" utils.py
-    sed -i "s|<SYSTEMADMINGROUP>|${systemadmingroup}|g" utils.py
+    sed -i "s|<GLOBALGROUPSFILE>|${globalgroupsfile}|g" utils.py
 else
     echo "Error: Neither utils.py.template nor utils.py found in src/"
     exit 1
@@ -224,8 +212,7 @@ echo
 echo "Configuration used:"
 echo "  User metadata location: $metadataloc"
 echo "  Group metadata location: $groupmetaloc"
-echo "  System env location: $systemenvdir"
-echo "  System admin group: $systemadmingroup"
+echo "  Global groups configuration: $globalgroupsfile"
 echo "  Binary directory: $default_bindir"
 echo "  Log directory: $default_logdir"
 echo ""
